@@ -2,7 +2,7 @@
 #include "ui_CLabelsDlg.h"
 
 CLabelsDlg::CLabelsDlg(QWidget *parent) :
-    QDialog(parent),
+    QDialog(parent_),
     ui(new Ui::CLabelsDlg)
 {
     ui->setupUi(this);
