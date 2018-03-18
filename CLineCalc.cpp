@@ -81,10 +81,10 @@ QString CLineCalc::getLine(QByteArray line_, QList <QByteArray> nameList_, float
    yReceived=false;
    line=line_.simplified();
    line0=line;
-   delete pConst;
-   delete pFun;
-   delete pVar;
-   delete pOper;
+   delete[] pConst;
+   delete[] pFun;
+   delete[] pVar;
+   delete[] pOper;
 
    if(line.length()<1)return "null strings are not accepted";
 
