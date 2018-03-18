@@ -66,7 +66,7 @@
          </size>
         </property>
         <property name="text">
-         <string>abs(-3+sqrt(25-x^2))</string>
+         <string>-3+sqrt(abs(25-x^2))</string>
         </property>
        </widget>
       </item>

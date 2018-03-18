@@ -7,7 +7,7 @@ MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
 {
-    move(0,0);
+//    move(200,200);
     ui->setupUi(this);
     ui->plotBtn->setDefault(true);
     connect(ui->lineChart,SIGNAL(valuesChanged(SXYValues,bool,bool)),this, SLOT(chartValuesChanged(SXYValues,bool,bool)));
@@ -104,7 +104,7 @@ void MainWindow::on_plotBtn_clicked()
 }
    line=ui->lineEdit->text().toLatin1();
    if(line.length()<1)return;
-   //Devo passare alla seguente getline come ultimo argomento un puntatore di puntatore a float che definisce la matrice dei valori delle variabili letterali. Però in funPlot l'unica variabile è "x", quindi passo una puntatore al nome di x.
+   //Devo passare alla seguente getline come ultimo argomento un puntatore di puntatore a float che definisce la matrice dei valori delle variabili letterali. Però in funPlot l'unica variabile è "x", quindi passo un puntatore al nome di x.
    err=lineCalc.getLine(line,names,xMatr);
    if(lineCalc.noVariables){
        QMessageBox::warning(this,"funPlot","Error: the inputted string does not contain \"x\"");

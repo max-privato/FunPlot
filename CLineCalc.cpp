@@ -29,14 +29,11 @@ CLineCalc::CLineCalc(){
     rxDatumFunPtr=QRegExp("[#@&]");
     rxDatumPtr=QRegExp("[#@]");
     rxLetter=QRegExp("[a-zA-Z]"); //initial character of a variable
-    rxLetterDigit=QRegExp("[a-zA-Z0-9]");
+    rxLetterDigit=QRegExp("[a-zA-Z0-9]");    rxNotLetterDigit=QRegExp("[^a-zA-Z0-9]");
     rxNotDigit=QRegExp("[^0-9]");  //not a digit
-    rxNotNum=QRegExp("[^0-9.]"); //not a character allowable in a number. I caratteri 'E' e 'e' sono considerati not-allowable perché sono trattati a parte per gestire l'eventuale segno sull'esponente.
-    rxNum=QRegExp("[0-9.]"); //initial character of a number
+    rxNum=QRegExp("[0-9.]");   rxNotNum=QRegExp("[^0-9.]"); //not a character allowable in a number. 'E' and 'e' are considered not-allowable since they are evaluated separtely to manage exponent sign.
     rxNumSepar=QRegExp("[-+*/() ]"); //carattere ammissibile fra un numero ed il successivo
-//    rxBinOper=QRegExp("[-+*/]"); //operator
     rxBinOper=QRegExp("[-+*/^]"); //operator
-    rxNotLetterDigit=QRegExp("[^a-zA-Z0-9]");
     pConst=0;
     pFun=0;
     pVar=0;
@@ -55,15 +52,24 @@ QString CLineCalc::getLine(QByteArray line_){
 }
 
 QString CLineCalc::getLine(QByteArray line_, QList <QByteArray> nameList_, float ** y_){
-    /* In questa funzione si trasferisce a CLineCalc la linea da analizzare e si fanno le seguenti semplici operazioni:
+    /* In questa funzione si trasferisce a CLineCalc la linea da analizzare e si fanno
+     * le seguenti semplici operazioni:
      * - allocazione dei vettori pConst, pFun, pUnaryMinus, pVar
-     * - sostituzione del carattere virgola col carattere punto come separatore della parte decimale
+     * - sostituzione del carattere virgola col carattere punto come separatore della
+     *   parte decimale
      * - una semplice diagnostica
-     * - sostituzione di costanti, funzioni, variabili, operatori binari e operatore unario negativo con i rispettivi caratteri di puntamento (#, @, &, + e -)
-     * In realtà nel caso di '-', indicatore di unario negativo, non serve un puntatore perché esiste un unico tipo di unario negativo, e quindi questo segno diviene direttamente una richiesta di unario negativo.
-     * Alla fine in line, oltre le parentesi resteranno solo i caratteri (#, @, &, + e -). Il '+' rappresenta le 4 operazioni matematiche (quella che è realmente rappresentata è indicata dal corrispondente *pOper[]), mentre il '-' rimane solo per l'unario negativo.
-     * PAAMETRI PASSATI:
-     * line_ contiene la linea da anlizzare (e successivamente valutare)
+     * - sostituzione di costanti, funzioni, variabili, operatori binari e operatore
+     *   unario negativo con i rispettivi caratteri di puntamento (#, @, &, + e -)
+     * In realtà nel caso di '-', indicatore di unario negativo, non serve un puntatore
+     * perché esiste un unico tipo di unario negativo, e quindi questo segno diviene
+     * direttamente una richiesta di unario negativo.
+     * Alla fine in line, oltre le parentesi resteranno solo i caratteri (#, @, &, + e -).
+     * Il '+' rappresenta le 4 operazioni matematiche (quella che è realmente
+     * rappresentata è indicata dal corrispondente *pOper[]), mentre il '-' rimane solo
+     * per l'unario negativo.
+     *
+     * PARAMETRI PASSATI:
+     * line_ contiene la linea da analizzare (e successivamente valutare)
      * nameList_ contiene la lista dei nomi delle variabili presenti in line_
      * y_ contiene per ogni riga il vettore dei valori delle variabili presenti in nameList_
 */
@@ -118,7 +124,7 @@ QString CLineCalc::getLine(QByteArray line_, QList <QByteArray> nameList_, float
    }
    if(par!=0) return "The string contains unbalanced brackets"; 
 
-  //4) se è presente un nome di funzione deve essere seguito, dal carattere '('       (in tal modo si intercettano nomi di variabili coincidenti con nomi di funzione,  inammissibili)
+  //4) se è presente un nome di funzione deve essere seguito dal carattere '(' (in tal modo si intercettano nomi di variabili coincidenti con nomi di funzione,  inammissibili)
   for(i=0; i<MAXFUNCTIONS; i++){
       int index=-1;
       while (1){
@@ -348,17 +354,26 @@ Significato dei parametri passati:
 
 
 QString CLineCalc::getVarPointers(QList <QByteArray> nameList, float ** y_){
-/* In questa funzione si ricevono i nomi delle variabili ed i rispettivi puntatori.
-Il primo parametro contiene una lista di nomi.
-Il secondo una matrice, realizzata con la mia funzione "CreateFmatrix", quindi attraverso puntatore ad un vettore di puntatori alle righe.
-Ogni riga contiene i dati numerici di una delle funzioni, con corrispondenza ordinata ad i nomi riportati in nameList.
-I valori di y devono essere allocati e disponibili esternamente all'oggetto CLineCalc.
-
-I nomi delle variabili vengono qui sostituiti con il carattere '@', ed in corrispondenza della sua posizione, il relativo valore viene messo nel corrispondente puntatore a float.
-    la funzione viene chiamata all'interno di getLine, dopo che essa ha chiamato substPointersToConsts, quindi si sa che non sono presenti numeri espliciti.
-    POSSONO però essere presenti nomi di funzioni, i quali vengono valutati in un secondo momento.
-
-    Ricordiamo che y_ punta già ad un vettore di puntatori alle variabili-funzione di cui si vuole fare l'elaborazione. Questi puntatori vanno però rimappati in pVar in quanto pVar è indicizzato sulla posizione dei rispettivi caratteri in "line". Il numero di elementi di pVar è inferiore a quello di variabili funzione.
+/* In questa funzione si ricevono i nomi delle variabili presenti in "line"
+ * ed puntatori ai rispettivi valori.
+ * Il secondo una matrice, realizzata con la mia funzione "CreateFmatrix", quindi
+ * attraverso puntatore ad un vettore di puntatori alle righe.
+ * Ogni riga contiene i dati numerici di una delle funzioni, con corrispondenza
+ * ordinata ad i nomi riportati in nameList.
+ *
+ * I valori di y devono essere allocati e disponibili esternamente all'oggetto CLineCalc.
+ *
+ * I nomi delle variabili vengono qui sostituiti con il carattere '@', ed in corrispondenza
+ * della sua posizione, il relativo valore viene messo nel corrispondente puntatore a float.
+ *
+ * la funzione viene chiamata all'interno di getLine, dopo che essa ha chiamato:
+ * - substPointersToConsts, quindi si sa che non sono presenti numeri espliciti;
+ * - substPointersToFuns, quindi si sa che non sono presenti nomi di funzioni;
+*
+ * Ricordiamo che y_ punta già ad un vettore di puntatori alle variabili-funzione di cui
+ * si vuole fare l'elaborazione. Questi puntatori vanno però rimappati in pVar in quanto
+ * pVar è indicizzato sulla posizione dei rispettivi caratteri in "line". Il numero di
+ * elementi di pVar è inferiore a quello di variabili funzione.
 
 */
    int i,k1;
@@ -376,7 +391,7 @@ I nomi delle variabili vengono qui sostituiti con il carattere '@', ed in corris
        if (ba==funStr[i])
            return"you cannot use variable names of built-in mathematical functions";
    }
-   //Ora verifico che i nomi di variabile presenti in line corrispondano tutti a variabii passate.
+   //Ora verifico che i nomi di variabile presenti in line corrispondano tutti a variabili passate.
    //Occorre ricordarsi che questa funzione è chiamata a valle di substPointersToConst e substPointersToFuns(), ma a monte di substPointersToOpers()
    //Creo una stringa temporanea in cui trasformo in ' ' tutto quanto non interessa (caratteri #@&^*/+-  e le parentesi); poi riduco gli spazi interposti fra i token a 1 con simplified(), così faccio più agevolmente il check:
    QByteArray auxStr=line;
@@ -413,7 +428,7 @@ I nomi delle variabili vengono qui sostituiti con il carattere '@', ed in corris
      }
      i=k1+1;
      if(!found)
-       return "Error: the substring \""+token+"\" is not a function or variable name.";
+       return "Error: the substring \""+token+"\" is not a variable name.";
      if(k1<1)break;
    }
 
@@ -571,9 +586,13 @@ Per prima cosa si tratta l'eventuale unario che si trova a inizio stringa, e poi
 }
 
 QString CLineCalc::substPointersToFuns(){
-    /* In questa funzione si sostituiscono le chiamate a funzione con il carattere '&', ed in corrispondenza della sua posizione, il relativo valore viene messo nel corrispondente puntatore a float.
-     * QUESTA FUNZIONE  dà per scontato che sia stata già eseguita substConstsToPointers().
-     * Possono invece essere presenti variabili, ma tutte con nomi diversi dai nomi di funzione ammessi.
+    /* In questa funzione si sostituiscono le chiamate a funzione con il carattere
+     *  '&', ed in corrispondenza della sua posizione il relativo valore viene messo
+     * nel corrispondente puntatore a float.
+     * QUESTA FUNZIONE  dà per scontato che sia stata già eseguita
+     * substConstsToPointers().
+     * Possono invece essere presenti variabili, ma tutte con nomi diversi dai nomi
+     * di funzione ammessi.
     */
 
     int  i,j; //indici generici
