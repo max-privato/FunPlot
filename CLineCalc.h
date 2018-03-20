@@ -1,6 +1,6 @@
 #ifndef CLINECALC_H
 #define CLINECALC_H
-#include <QByteArray>
+#include <QString>
 #include <QList>
 #include <QRegExp>
 #include <QVector>
@@ -51,8 +51,8 @@ class CLineCalc{
     QString ret;
     CLineCalc();
     float compute(int iVal);
-    QString getLine(QByteArray line_);
-    QString getLine(QByteArray line_, QList <QByteArray> nameList, float ** y_);
+    QString getLine(QString line_);
+    QString getLine(QString line_, QList<QString> nameList, float ** y_);
     SXYNameData giveXYNameData();
   private:
     bool varListsReceived; //è true se è sono state inviate le liste dei nomi e valori di variabili per la riga corrente
@@ -60,7 +60,7 @@ class CLineCalc{
     bool constantsConverted;
     int defaultFileNum;
 //    float result;
-    QByteArray line0, prepLine, line, stringOperators;
+    QString line0, prepLine, line, stringOperators;
     QVector <int> varNumVect; //contiene l'elenco del numero di variabili per i MAXFILES files; serve per il check sintattico per le funzioni di variabile.
     QRegExp
        rxAlphabet, //l'intero alfabeto, unione delle seguenti due stringhe
@@ -81,7 +81,7 @@ class CLineCalc{
     int * pOper; //vettore di puntatori agli operatori binari
 
     //Nomi delle funzioni unarie:
-    QByteArray funStr[MAXFUNCTIONS];
+    QString funStr[MAXFUNCTIONS];
     double (*fun1[MAXFUNCTIONS])(double x1); // Il nome fun1 fa riferimento al fatto che sono funzioni a un argomento (come sin, cos, ecc.)
     QString (*fun2[MAXBINARYOPS])(float x1, float x2,  float  &y); // Il nome fun2 fa riferimento al fatto che sono funzioni a due argomenti (come somma, prodotto, ecc.)
     static QString  sum(float x1, float x2, float & y), subtr(float x1, float x2, float & y),
@@ -90,7 +90,7 @@ class CLineCalc{
     QString computeFun1(int start, int end, int iVal);
     QString computeOperator(int start, int end, int startOp, int numOp, int iVal);
     QString computeUnaryMinus(int start, int end, int iVal);
-    QString getVarPointers(QList<QByteArray> nameList, float **y_);
+    QString getVarPointers(QList<QString> nameList, float **y_);
     QString substPointersToConsts();
     QString substPointersToOpers();
     QString substPointersToFuns();

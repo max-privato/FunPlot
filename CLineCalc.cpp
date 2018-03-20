@@ -40,18 +40,18 @@ CLineCalc::CLineCalc(){
     pOper=0;
 }
 
-QString CLineCalc::getLine(QByteArray line_){
+QString CLineCalc::getLine(QString line_){
   /*Questa funzione overloaded va usata quando non ci sono variabili in Line.
 */
     QString err;
-    QList <QByteArray> nameList;
+    QList <QString> nameList;
     float **y=0;
     //Mando in esecuzione la getLine con tutti gli argomenti con una lista di variabili vuota:
     err=getLine (line_, nameList, y);
     return err;
 }
 
-QString CLineCalc::getLine(QByteArray line_, QList <QByteArray> nameList_, float ** y_){
+QString CLineCalc::getLine(QString line_, QList <QString> nameList_, float ** y_){
     /* In questa funzione si trasferisce a CLineCalc la linea da analizzare e si fanno
      * le seguenti semplici operazioni:
      * - allocazione dei vettori pConst, pFun, pUnaryMinus, pVar
@@ -168,7 +168,7 @@ float CLineCalc::compute(int iVal){
    static bool recursiveCall=false;
    int d1, //indici del dato  1
          j;  //indice generico
-   float result;
+   float result=0.0;
    QString err;
 
 /* Questa funzione altera "line" durante il calcolo. Può essere chiamata più volte dall'esterno con diversi valori di iVal, e può essere anche chiamata ricorsivamente da se stessa durante l'elaborazione delle espressioni fra parentesi.
@@ -353,7 +353,7 @@ Significato dei parametri passati:
 }
 
 
-QString CLineCalc::getVarPointers(QList <QByteArray> nameList, float ** y_){
+QString CLineCalc::getVarPointers(QList <QString> nameList, float ** y_){
 /* In questa funzione si ricevono i nomi delle variabili presenti in "line"
  * ed puntatori ai rispettivi valori.
  * Il secondo una matrice, realizzata con la mia funzione "CreateFmatrix", quindi
@@ -381,12 +381,12 @@ QString CLineCalc::getVarPointers(QList <QByteArray> nameList, float ** y_){
    yReceived=true;
 
    //Verifico che i nomi di variabili passati comincino per lettera:
-   foreach (QByteArray ba,  nameList){
+   foreach (QString ba,  nameList){
      if(rxLetter.indexIn(ba,0)!=0)
        return "err0";
    }
    //Verifico che nessuna variabile passata abbia un nome uguale a quello di una funzione
-   foreach (QByteArray ba,  nameList){
+   foreach (QString ba,  nameList){
      for( i=0; i<MAXFUNCTIONS; i++)
        if (ba==funStr[i])
            return"you cannot use variable names of built-in mathematical functions";
@@ -394,7 +394,7 @@ QString CLineCalc::getVarPointers(QList <QByteArray> nameList, float ** y_){
    //Ora verifico che i nomi di variabile presenti in line corrispondano tutti a variabili passate.
    //Occorre ricordarsi che questa funzione è chiamata a valle di substPointersToConst e substPointersToFuns(), ma a monte di substPointersToOpers()
    //Creo una stringa temporanea in cui trasformo in ' ' tutto quanto non interessa (caratteri #@&^*/+-  e le parentesi); poi riduco gli spazi interposti fra i token a 1 con simplified(), così faccio più agevolmente il check:
-   QByteArray auxStr=line;
+   QString auxStr=line;
    auxStr.replace('#',' ');
    auxStr.replace('@',' ');
    auxStr.replace('&',' ');
@@ -413,14 +413,14 @@ QString CLineCalc::getVarPointers(QList <QByteArray> nameList, float ** y_){
    }
    i=0;
    while(true){
-     QByteArray token;
+     QString token;
        k1=auxStr.indexOf(' ',i);
      if(k1<1)
        token=auxStr.mid(i,auxStr.count()-i);
      else
        token=auxStr.mid(i,k1-i);
      bool found=false;
-     foreach(QByteArray ba, nameList){
+     foreach(QString ba, nameList){
        if (ba==token) {
          found=true;
          break;
@@ -432,7 +432,7 @@ QString CLineCalc::getVarPointers(QList <QByteArray> nameList, float ** y_){
      if(k1<1)break;
    }
 
-   foreach(QByteArray varStr, nameList){
+   foreach(QString varStr, nameList){
      //Cerco tutte le occorrenze di varStr in line
      i=-1;
      while(true){
@@ -463,7 +463,7 @@ SVarNums CLineCalc::readVarXYNums(QString varStr){
 Se il nome è incorretto ritorna varNum=-1 e fileNum indefinito.
 Se il nome è di tipo v# il filenum è pNum*/
     bool  ok=false;
-    int  j, k, fileNum=defaultFileNum, varNNum;
+    int  j=0, k, fileNum=defaultFileNum, varNNum;
     SVarNums varNums;  //E' il valore di ritorno. Se varNNum<0 vi è stato un errore
     switch(varStr.at(0).toLatin1()){
     case 'f':
@@ -525,7 +525,7 @@ QString CLineCalc::substPointersToConsts(){
 Per prima cosa si tratta l'eventuale unario che si trova a inizio stringa, e poi si procede con numeri tutti positivi */
    bool eol=false, unary=false, unaryMinus=false, ok;
    int i=0,j, k1, k2;
-   QByteArray numStr;
+   QString numStr;
 
    i=-1;
    while(!eol){
@@ -692,7 +692,7 @@ QString CLineCalc::substPointersToOpers(){
     }
     // ora gli altri operatori:
     for (i=0; i<line.count(); i++){
-      switch(line[i]){
+      switch(line[i].toLatin1()){
         case '^':   pOper[i]=0; break;
         case '*':   pOper[i]=1; break;
         case '/':   pOper[i]=2; break;

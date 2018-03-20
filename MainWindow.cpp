@@ -89,9 +89,9 @@ void MainWindow::on_plotBtn_clicked()
      QMessageBox::information(this,"","Invalid number in the x max field.");
      return;
    }
-   QByteArray line;
+   QString line;
    QString err;
-   QList <QByteArray> names;
+   QList <QString> names;
 
    DeleteFMatrix(y);
    DeleteFMatrix(yRes);
