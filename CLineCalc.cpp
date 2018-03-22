@@ -148,14 +148,14 @@ QString CLineCalc::getLine(QString line_, QList <QString> nameList_, float ** y_
           break;
       }
    }
-   ret=substPointersToConsts();
+   ret=substConstsWithPointers();
    if(ret!="") return ret;
-   ret=substPointersToFuns();
+   ret=substFunsWithPointers();
    if(ret!="") return ret;
    if(nameList_.count()>0)
      ret=getVarPointers(nameList_, y_);
    simplify();  //toglie le parentesi inutili.
-   substPointersToOpers();
+   substOpersWithPointers();
    return ret;
 }
 
@@ -253,6 +253,7 @@ QString CLineCalc::computeFun1(int start, int end, int iVal){
     line[j]=' ';
     pConst[i]=(float)y;
   }
+  return "";
 }
 
 QString CLineCalc::computeOperator(int start, int end, int startOp, int numOp, int iVal){
@@ -356,8 +357,8 @@ Significato dei parametri passati:
 QString CLineCalc::getVarPointers(QList <QString> nameList, float ** y_){
 /* In questa funzione si ricevono i nomi delle variabili presenti in "line"
  * ed puntatori ai rispettivi valori.
- * Il secondo una matrice, realizzata con la mia funzione "CreateFmatrix", quindi
- * attraverso puntatore ad un vettore di puntatori alle righe.
+ * Il secondo parametro è una matrice, realizzata con la mia funzione "CreateFmatrix",
+ * quindi attraverso puntatore ad un vettore di puntatori alle righe.
  * Ogni riga contiene i dati numerici di una delle funzioni, con corrispondenza
  * ordinata ad i nomi riportati in nameList.
  *
@@ -520,7 +521,7 @@ void CLineCalc::simplify(){
 
 
 
-QString CLineCalc::substPointersToConsts(){
+QString CLineCalc::substConstsWithPointers(){
     /* In questa funzione si sostituiscono le costanti con il carattere '#', ed in corrispondenza della sua posizione, il relativo valore viene messo nel corrispondente puntatore a float.
 Per prima cosa si tratta l'eventuale unario che si trova a inizio stringa, e poi si procede con numeri tutti positivi */
    bool eol=false, unary=false, unaryMinus=false, ok;
@@ -585,7 +586,7 @@ Per prima cosa si tratta l'eventuale unario che si trova a inizio stringa, e poi
    return"";
 }
 
-QString CLineCalc::substPointersToFuns(){
+QString CLineCalc::substFunsWithPointers(){
     /* In questa funzione si sostituiscono le chiamate a funzione con il carattere
      *  '&', ed in corrispondenza della sua posizione il relativo valore viene messo
      * nel corrispondente puntatore a float.
@@ -651,7 +652,7 @@ QString CLineCalc::substPointersToFuns(){
    return "";
 }
 
-QString CLineCalc::substPointersToOpers(){
+QString CLineCalc::substOpersWithPointers(){
     /* In questa funzione si sostituiscono i segni di operatore binario con il segno unificato '+'.
      * L'informazione sul tipo di operatore originariamente presente è memorizzata nel corrispondente elemento del vettore pOper.
      * Questo rende più efficiente la successiva esecuzione di compute().

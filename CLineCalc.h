@@ -1,5 +1,6 @@
 #ifndef CLINECALC_H
 #define CLINECALC_H
+#include <QColor>
 #include <QString>
 #include <QList>
 #include <QRegExp>
@@ -36,14 +37,35 @@ struct SVarNums{
     bool operator== (const SVarNums & x);
 };
 
-
 struct SXYNameData{
-    bool  isIntegral, //se true la stringa sta richiedendo il calcolo sdi un integrale e quindi vengono tornati in fileNums i dati si un unica variabile, che è quella di cui si fa l'integrale.
-    allLegalNames; //true se tutte le variabili contengono un nome legale Se allLegalNames=false il contenuto delle altre variabili della struttura è indeterminato in quanto alla prima variabile non valida l'analisi della stringa di input è interrotta
+    bool  integralRequest, //se true la stringa sta richiedendo il calcolo di un integrale e quindi vengono tornati in fileNums i dati di un' 'unica variabile, che è quella di cui si fa l'integrale.
+    allLegalNames; //true se tutte le variabili contengono un nome legale. Se allLegalNames=false il contenuto delle altre variabili della struttura è indeterminato in quanto alla prima variabile non valida l'analisi della stringa di input è interrotta
     QList <int> fileNums; //contiene la lista dei numeri dei files da cui è necessario prelevare le variabili della stringa (in item in lista per ogni file differente)
     QList <SVarNums> varNumsLst; //Numeri delle variabili. Un item in lista per ogni variabile differente
 };
 
+/*
+ * Questa definizione della struttura è più estesa ma compatibile con la precedente. Se commento quella qui sopra e decommento questa funplot va ancora bene.
+ * Questa definizione estesa è necessaria in PlotXY in quanto la stess astruttura viene usata dia per le due versioni di CLineCalc che per un po' saranno contemporaneamente presente: quella di funPlot (questa), che verrà chiamata in PlotX CLineCalcNew) e quella origiariamente sviluppata per PlotXY,che manterrà il nome CLineCalc.
+ *
+ *
+ *
+struct SXYNameData{
+    bool allLegalNames; //true se tutte le variabili contengono un nome legale Se allLegalNames=false il contenuto delle altre variabili della struttura è indeterminato in quanto alla prima variabile non valida l'analisi della stringa di input è interrotta
+    bool rightScale;  //dice se la variabile va plottata verso l'asse verticale destro o no.
+    bool integralRequest;  //dice se si sta richiedendo l'integrale di una stringa
+    QColor color;
+    QList <int> fileNums; //contiene la lista dei numeri dei files da cui è necessario prelevare le variabili della stringa (un item in lista per ogni file differente)
+    QList <SVarNums> varNumsLst; //Numeri delle variabili. Un item in lista per ogni variabile differente
+    QList <QString> varNames; //i nomi delle variabili della stringa. Forniscono un'informazione meno sofisticata di varNumsLst ma utile quando non serve la scomposizione di dettaglio ma solo i nomi.
+    QList <QString> varUnits; //i nomi delle variabili unità di misura delle variabili della stringa. L'ordine è il medesimo di varNames.
+    QString line; //v. CLineCalcDevel
+    QString lineInt; //v. CLineCalcDevel
+    QString name; //nome attribuito alla funzione di variabile descritta.
+    QString ret; //messaggio di errore compilato se allLegalNames=false;
+};
+
+*/
 
 class CLineCalc{
   public:
@@ -57,7 +79,8 @@ class CLineCalc{
   private:
     bool varListsReceived; //è true se è sono state inviate le liste dei nomi e valori di variabili per la riga corrente
     bool yReceived; //è true se è sono state inviate le liste dei nomi di variabili per la riga corrente e relativa matrice dei valori y
-    bool constantsConverted;
+    bool constantsConverted; //true se questa routine sia stata chiamata a valle di substPointersToConsts():
+
     int defaultFileNum;
 //    float result;
     QString line0, prepLine, line, stringOperators;
@@ -91,9 +114,9 @@ class CLineCalc{
     QString computeOperator(int start, int end, int startOp, int numOp, int iVal);
     QString computeUnaryMinus(int start, int end, int iVal);
     QString getVarPointers(QList<QString> nameList, float **y_);
-    QString substPointersToConsts();
-    QString substPointersToOpers();
-    QString substPointersToFuns();
+    QString substConstsWithPointers();
+    QString substOpersWithPointers();
+    QString substFunsWithPointers();
     void simplify();
     SVarNums readVarXYNums(QString varStr);
 
