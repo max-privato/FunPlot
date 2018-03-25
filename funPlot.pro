@@ -38,6 +38,6 @@ FORMS    += MainWindow.ui \
     info.ui
 
 RESOURCES =  Images.qrc
-ICON = funPlot.icns
+# ICON = funPlot.icns
 RC_ICONS = funPlot.ico
 
