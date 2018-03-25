@@ -122,7 +122,7 @@ QString CLineCalc::getLine(QString line_, QList <QString> nameList_, float ** y_
      if(line[i]==')') par--;
      if(par<0)break;
    }
-   if(par!=0) return "The string contains unbalanced brackets"; 
+   if(par!=0) return "The string contains unbalanced brackets";
 
   //4) se è presente un nome di funzione deve essere seguito dal carattere '(' (in tal modo si intercettano nomi di variabili coincidenti con nomi di funzione,  inammissibili)
   for(i=0; i<MAXFUNCTIONS; i++){
@@ -641,10 +641,12 @@ QString CLineCalc::substFunsWithPointers(){
              pFun[index]=fun1[i];
              for (j=1; j<funStr[i].count(); j++)
                line[index+j]=' ';
-             break;
+             //do' la possibilità ad altre istanze della medesima funzione di essere presee in considerazione:
+//             break;
+             continue;
            }
-         }
-         goto nextFunction;
+         } else
+           goto nextFunction;
        }
        nextFunction:
        continue;
