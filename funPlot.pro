@@ -16,26 +16,26 @@ SOURCES += main.cpp\
         MainWindow.cpp \
     CLineChart.cpp \
     matrix.cpp \
-    CLabelsDlg.cpp \
     CLineCalc.cpp \
     CPlotOptions.cpp  \
     CScaleDlg.cpp  \
-    info.cpp
+    info.cpp \
+    CUnitsDlg.cpp
 
 HEADERS  += MainWindow.h\
     CLineChart.h \
     matrix.h \
-    CLabelsDlg.h \
     CLineCalc.h \
     CPlotOptions.h \
     CScaleDlg.h \
-    info.h
+    info.h \
+    CUnitsDlg.h
 
 FORMS    += MainWindow.ui \
-    CLabelsDlg.ui \
     CPlotOptions.ui \
     CScaleDlg.ui \
-    info.ui
+    info.ui \
+    CUnitsDlg.ui
 
 RESOURCES =  Images.qrc
 # ICON = funPlot.icns

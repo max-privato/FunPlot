@@ -5,7 +5,8 @@ int **CreateIMatrix(long NumRows, long NumCols){
     int  **Matrix;
     //Allocaz. vettore puntatori alle righe:
     Matrix=new int *[NumRows];
-    if(Matrix==0) return 0;
+    if(Matrix==nullptr)
+        return nullptr;
   //Allocaz. matrice:
     Matrix[0]=new int[NumRows*NumCols];
     for(i=1; i<NumRows; i++)
@@ -14,7 +15,8 @@ int **CreateIMatrix(long NumRows, long NumCols){
 }
 
 void DeleteIMatrix(int  **Matrix){
-    if(Matrix==NULL) return;
+    if(Matrix==nullptr)
+        return;
     delete[] Matrix[0];
     delete[] Matrix;
 }
@@ -24,11 +26,14 @@ float **CreateFMatrix(long NumRows, long NumCols){
     float **Matrix;
     //Allocaz. vettore puntatori alle righe:
     Matrix=new float*[NumRows];
-    if(Matrix==NULL)return NULL;
-    if(Matrix==0) return 0;
+    if(Matrix==nullptr)
+        return nullptr;
+    if(Matrix==nullptr)
+        return nullptr;
   //Allocaz. matrice:
     Matrix[0]=new float[NumRows*NumCols];
-    if(Matrix[0]==NULL)return NULL;
+    if(Matrix[0]==nullptr)
+        return nullptr;
     for(i=1; i<NumRows; i++)
         Matrix[i]=Matrix[0]+i*NumCols;
     return Matrix;

@@ -38,6 +38,7 @@ private slots:
     void on_scaleTBtn_clicked();
 
 private:
+    bool exactMatch;
     float *x;
     float **y; //matrice delle funzioni da elaborare
     float **yRes; //matrice (un'unica riga dei risultati

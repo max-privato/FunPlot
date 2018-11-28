@@ -2,29 +2,58 @@
 #include "MainWindow.h"
 #include "ui_MainWindow.h"
 #include "matrix.h"
+#include <QScreen>
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
 {
-//    move(200,200);
+
+
+    qreal factorW;
+    qreal factorH;
+    int originalMaxWidth=maximumWidth();
+    int originalMinWidth=minimumWidth();
+    int originalWidth=geometry().width();
+    int originalHeight=geometry().height();
+    QScreen *screen=QGuiApplication::primaryScreen();
+    double currentDPI=screen->logicalDotsPerInch();
+
+
+    //Se sono su schermi 4k aumento la dimensione della finestra rispetto a quanto progettato in Designer, ma non la raddoppio; In futuro metterò un'opzione che consentirà all'utente di scegliere fra finestre medie, piccole o grandi. Quella che faccio qui è piccola
+
+    // If you are on 4k screens, increase the window size compared to what was
+    // designed in Designer, but not double it; In the future I will put an
+    // option that will allow the user to choose between medium, small or
+    // large windows. What I do here is small
+    if(currentDPI>100){
+      factorW=qMin(1.7,0.9*currentDPI/96.0);
+      factorH=qMin(1.5,0.9*currentDPI/96.0);
+    }else {
+      factorW=1.0;
+      factorH=1.0;
+    }
+    resize(int(factorW*originalWidth),int(factorH*originalHeight));
+    setMaximumWidth(int(factorW*originalMaxWidth));
+    setMinimumWidth(int(factorW*originalMinWidth));
+
+    move(200,200);
     ui->setupUi(this);
     ui->plotBtn->setDefault(true);
     connect(ui->lineChart,SIGNAL(valuesChanged(SXYValues,bool,bool)),this, SLOT(chartValuesChanged(SXYValues,bool,bool)));
-    ui->lineChart->FLinearInterpolation=false;
-    ui->lineChart->FLegend=false;
+    ui->lineChart->linearInterpolate=false;
+    ui->lineChart->addLegend=false;
     ui->interpolateBox->setVisible(false);
     ui->xValueLbl->setVisible(false);
     ui->yValueLbl->setVisible(false);
     plotOpsWin = new CPlotOptions(this);
-    x=NULL;
-    y=NULL;
-    yRes=NULL;
+    x=nullptr;
+    y=nullptr;
+    yRes=nullptr;
     //Assegno alla finestra delle opzioni i valori predefiniti.
     plotOpsWin->prepare(false,ptLine,stLin, stLin,pwAuto);
     myScaleDlg =new CScaleDlg(this);
     myScaleDlg->setWindowTitle("Plot scale setup");
-
 }
 
 MainWindow::~MainWindow()
@@ -61,7 +90,7 @@ void MainWindow::on_diffTBtn_clicked()
 
 void MainWindow::on_interpolateBox_clicked(bool checked)
 {
-    ui->lineChart->FLinearInterpolation=checked;
+    ui->lineChart->linearInterpolate=checked;
 }
 
 void MainWindow::on_plotBtn_clicked()
@@ -96,7 +125,7 @@ void MainWindow::on_plotBtn_clicked()
    DeleteFMatrix(y);
    DeleteFMatrix(yRes);
 
-   yRes=CreateFMatrix(1,points);
+   yRes=CreateFMatrix(1L,long(points));
    names.append("x");  //nome della variabile x
    float step=(xmax-xmin)/(points-1);
    for(int i=0; i<points; i++) {
@@ -183,42 +212,40 @@ void MainWindow::on_titleBtn_clicked(bool checked)
 
 void MainWindow::on_optionsBtn_clicked()
 {
-  SPlotOptions opt;
-  plotOpsWin->exec();
-  //recupero i dati scelti dall'utente:
-  opt=plotOpsWin->giveData();
-  ui->lineChart->setXScaleType(opt.xScaleType); //{stLin, stDB, stLog}
-  ui->lineChart->setYScaleType(opt.yScaleType); //{stLin, stDB, stLog}
-  ui->lineChart->xGrid=opt.grids;
-  ui->lineChart->yGrid=opt.grids;
-  ui->lineChart->plotType=opt.plotType; //{ptLine,ptBar, ptSwarm}
-  ui->lineChart->setPlotPenWidth(opt.penWidth); //{pwThin, pwThick, pwAuto}
-  if(plotOpsWin->swSizeIsPixel)
-    ui->lineChart->swarmPointSize=ssPixel;
-  else
-    ui->lineChart->swarmPointSize=ssSquare;
-  if(!plotOpsWin->accepted)return;
-  if(!opt.autoAxisFontSize){
-    ui->lineChart->fontSizeType=CLineChart::fsFixed;
-    ui->lineChart->fixedFontPx=opt.axisFontSize;
-  } else{
-      ui->lineChart->fontSizeType=CLineChart::fsAuto;
-  }
-  //Operazioni di ritracciamento del grafico
-  ui->lineChart->designPlot();
-  if(ui->lineChart->zoomed)
-    ui->lineChart->plot(false);
-  else
-    ui->lineChart->plot(true);
+    SPlotOptions opt;
+    plotOpsWin->exec();
+    //recupero i dati scelti dall'utente:'
+    opt=plotOpsWin->giveData();
+    ui->lineChart->setXScaleType(opt.xScaleType); //{stLin, stDB, stLog}
+    ui->lineChart->setYScaleType(opt.yScaleType); //{stLin, stDB, stLog}
+    ui->lineChart->xGrid=opt.grids;
+    ui->lineChart->yGrid=opt.grids;
+    ui->lineChart->plotType=opt.plotType; //{ptLine,ptBar, ptSwarm}
+    ui->lineChart->setPlotPenWidth(opt.penWidth); //{pwThin, pwThick, pwAuto}
+    if(plotOpsWin->swSizeIsPixel)
+      ui->lineChart->swarmPointSize=ssPixel;
+    else
+      ui->lineChart->swarmPointSize=ssSquare;
+    if(!plotOpsWin->accepted)return;
+    if(!opt.autoAxisFontSize){
+      ui->lineChart->fontSizeType=CLineChart::fsFixed;
+      ui->lineChart->fixedFontPx=opt.axisFontSize;
+    } else{
+        ui->lineChart->fontSizeType=CLineChart::fsAuto;
+    }
+    //Operazioni di ritracciamento del grafico
+    if(ui->lineChart->isZoomed())
+      ui->lineChart->plot(false);
+    else
+      ui->lineChart->plot(true);
 }
 
 void MainWindow::on_scaleTBtn_clicked()
 {
     //Preparazione prima della visualizzazione della scheda:
-    myScaleDlg->getDispRect(ui->lineChart->giveDispRect());
-    SAllLabels labels=ui->lineChart->giveAllLabels();
-    myScaleDlg->getAllLabels(ui->lineChart->giveAllLabels());
-
+    myScaleDlg->getInfo(ui->lineChart->giveDispRect(),ui->lineChart->twinScale);
+    myScaleDlg->getFullLimits(ui->lineChart->giveFullLimits(),ui->lineChart->cutsLimits);
+    myScaleDlg->xUnit=ui->lineChart->givexUnit();
     //Visualizzazione della scheda fino a che non metto dati corretti o faccio Cancel:
     QString ret;
     do{
@@ -227,14 +254,19 @@ void MainWindow::on_scaleTBtn_clicked()
       ret=myScaleDlg->validDispRect();
       if(ret!="")  QMessageBox::warning(this," ",ret);
     }while (ret!="");
-    ui->lineChart->zoomed=true;
     ui->lineChart->setDispRect(myScaleDlg->giveDispRect());
-    if(myScaleDlg->labelOverride){
-       ui->lineChart->getAllLabels(myScaleDlg->giveAllLabels());
-       ui->lineChart->labelOverride=true;
+
+    exactMatch=myScaleDlg->giveExactMatch();
+
+    if(myScaleDlg->useUserUnits){
+      ui->lineChart->getUserUnits(myScaleDlg->xUnit, myScaleDlg->yUnit, myScaleDlg->ryUnit);
+      ui->lineChart->useUserUnits=true;
+    }else{
+      ui->lineChart->useUserUnits=false;
     }
-    ui->lineChart->wIsOmega=myScaleDlg->giveWisOmega();
+    ui->lineChart->useBrackets=myScaleDlg->useBrackets;
     ui->lineChart->exactMatch=myScaleDlg->exactMatch;
+    ui->lineChart->useSmartUnits=myScaleDlg->useSmartUnits;
     ui->lineChart->plot(false);
-    ui->lineChart->markAll();
+//    ui->lineChart->markAll();
 }

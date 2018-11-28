@@ -100,17 +100,17 @@ class CLineCalc{
 
     float * pConst; //vettore di puntatori alle costanti in line
     float ** pVar; //vettore di puntatori ai primi valori di ogni variabile
-    double (*(*pFun))(double x); //vettore di puntatori alle funzioni
+    float (*(*pFun))(float x); //vettore di puntatori alle funzioni
     int * pOper; //vettore di puntatori agli operatori binari
 
     //Nomi delle funzioni unarie:
     QString funStr[MAXFUNCTIONS];
-    double (*fun1[MAXFUNCTIONS])(double x1); // Il nome fun1 fa riferimento al fatto che sono funzioni a un argomento (come sin, cos, ecc.)
+    float (*fun1[MAXFUNCTIONS])(float x1); // Il nome fun1 fa riferimento al fatto che sono funzioni a un argomento (come sin, cos, ecc.)
     QString (*fun2[MAXBINARYOPS])(float x1, float x2,  float  &y); // Il nome fun2 fa riferimento al fatto che sono funzioni a due argomenti (come somma, prodotto, ecc.)
     static QString  sum(float x1, float x2, float & y), subtr(float x1, float x2, float & y),
                prod(float x1, float x2, float & y),   div(float x1, float x2, float & y),
                power(float x1, float x2, float & y);
-    QString computeFun1(int start, int end, int iVal);
+    QString computeFun1(int start, int iVal);
     QString computeOperator(int start, int end, int startOp, int numOp, int iVal);
     QString computeUnaryMinus(int start, int end, int iVal);
     QString getVarPointers(QList<QString> nameList, float **y_);
