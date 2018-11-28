@@ -132,13 +132,13 @@ void MainWindow::on_plotBtn_clicked()
     x[i]=xmin+i*step;
 }
    line=ui->lineEdit->text().toLatin1();
-   if(line.length()<1)return;
-   //Devo passare alla seguente getline come ultimo argomento un puntatore di puntatore a float che definisce la matrice dei valori delle variabili letterali. Però in funPlot l'unica variabile è "x", quindi passo un puntatore al nome di x.
-   err=lineCalc.getLine(line,names,xMatr);
-   if(lineCalc.noVariables){
-       QMessageBox::warning(this,"funPlot","Error: the inputted string does not contain \"x\"");
+   if(line.length()<1)
        return;
-   }
+
+   //Passo a lineCalc la linea e ne comando l'interpretazione:
+   lineCalc.xyNaming=false;
+   err=lineCalc.getLine(line,1);
+   err=lineCalc.getNamesAndMatrix(names,xMatr);
 
    if(err!=""){
        QMessageBox::warning(this,"funPlot",err);
