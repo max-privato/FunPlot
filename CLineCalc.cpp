@@ -3,8 +3,8 @@
 #define max(a, b)  (((a) > (b)) ? (a) : (b))
 
 QString giveUnits(QChar c){
-    int ic=c.toLatin1();
-    switch (ic){
+  int ic=c.toLatin1();
+  switch (ic){
     case 't': return "s";
     case 'f': return "s";
     case 'v': return "V";
@@ -13,7 +13,8 @@ QString giveUnits(QChar c){
     case 'p': return "W";
     case 'e': return "J";
   }
-};
+  return "";
+}
 
 
 CLineCalc::CLineCalc(bool allowMathFunctions_){
@@ -571,6 +572,15 @@ QString fillNames(QString inpStr, int defaultFileNum){
 }
 
 
+void CLineCalc::getFileInfo(QList <int> fileNumsLst_, QList <QString> fileNamesLst_, QList <int> varMaxNumsLst_){
+ /* Questa funzione serve per consentire il check sintattico sulle stringhe introdotte dall'utente, e quindi fornisce la lista dei numeri di files sono utilizzabili nelle funzioni di variabili.
+I nomi dei files vengono invece usati per creare la stringa corretta di tooltip per le variabili funzione (non attualmente, nov. 2016) che si usa "f1:", "f2:" ecc.)*/
+  fileNumsLst=fileNumsLst_;
+  fileNamesLst=fileNamesLst_;
+  varMaxNumsLst=varMaxNumsLst_;
+}
+
+
 QString CLineCalc::getNamesAndMatrix(QList <QString> nameList, float ** y_, QList <QString *> namesFullList, int selectedFileIdx){
   /* Questa funzione overloaded oltre all'usuale calcolo di getNamesAndMatrix, compila anche
    *  la riga "lineFullNames", in cui ai nomi codificati delle variabili (tipo "f1v2")
@@ -666,14 +676,6 @@ La costruzione di lineFullNames segue la seguente logica:
   return "";
 }
 
-
-void CLineCalc::getFileInfo(QList <int> fileNumsLst_, QList <QString> fileNamesLst_, QList <int> varMaxNumsLst_){
- /* Questa funzione serve per consentire il check sintattico sulle stringhe introdotte dall'utente, e quindi fornisce la lista dei numeri di files sono utilizzabili nelle funzioni di variabili.
-I nomi dei files vengono invece usati per creare la stringa corretta di tooltip per le variabili funzione (non attualmente, nov. 2016) che si usa "f1:", "f2:" ecc.)*/
-  fileNumsLst=fileNumsLst_;
-  fileNamesLst=fileNamesLst_;
-  varMaxNumsLst=varMaxNumsLst_;
-}
 
 
 QString CLineCalc::getNamesAndMatrix( QList <QString> nameList, float ** y_){
@@ -773,7 +775,7 @@ void CLineCalc::getExplicitNames(QList<QList <QString> >  names_){
 }
 
 QString CLineCalc::getLine(QString line_, int defaultfileNum_){
-  /* Funzione che riceve la stringa che verrà utilizata per il calcolo delle funzioni di grafici.
+  /* Funzione che riceve la stringa che verrà utilizzata per il calcolo delle funzioni di grafici.
 
 Riceve la stringa, compila le versioni semplificate fa un po' di diagnostica e alloca spazio per i puntatori.
 
