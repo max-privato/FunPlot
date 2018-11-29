@@ -86,7 +86,6 @@ QString fillNames(QString inpStr, int defaultFileNum);
 class CLineCalc{
   public:
     bool allowMathFunctions; // se accetta funzioni tipo sin(), cos(), abs(),ecc.
-    bool noVariables; //se true la stringa non contiene variabili
     bool xyNaming; //se true accetta solo nomi di variabili f#v# o v#
     bool divisionByZero; //se c'è stata una divisione per 0 diviene true
     bool domainError; //domain error in sqrt
@@ -100,8 +99,6 @@ class CLineCalc{
     void getExplicitNames(QList<QList <QString> >  names_);
     void getFileInfo(QList <int> fileNumsLst_, QList<QString> fileNamesLst_, QList <int> varMaxNumsLst_);
     QString getLine(QString line_, int defaultfileNum_);
-    QString getLine(QString line_, QList<QString> nameList, float ** y_);
-    QString getVarPointers(QList<QString> nameList, float **y_);
     QString getNamesAndMatrix(QList <QString> nameList, float ** y_);
     QString getNamesAndMatrix(QList <QString> nameList, float ** y_, QList<QString *> namesFullList, int selectedFileIdx);
     QString giveLine(QString);

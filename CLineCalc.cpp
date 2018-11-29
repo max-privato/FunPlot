@@ -3,8 +3,8 @@
 #define max(a, b)  (((a) > (b)) ? (a) : (b))
 
 QString giveUnits(QChar c){
-  int ic=c.toLatin1();
-  switch (ic){
+    int ic=c.toLatin1();
+    switch (ic){
     case 't': return "s";
     case 'f': return "s";
     case 'v': return "V";
@@ -80,6 +80,7 @@ QString CLineCalc::computeUnits(){
    * condente di per replicare quello che c'era nel vecchio plotXWin per il quale VxI dava W
 */
     int i;
+//    extern QString giveUnits(QChar c); //definita in CVarTableComp
     QString unit="";
 
     // In questa versione semplificata la stringa deve contenere solo un alfabeto semplificato:
@@ -130,19 +131,8 @@ QString CLineCalc::computeUnits(){
 }
 
 float CLineCalc::compute(int iVal){
-  /* Questa funzione fa il calcolo per un certo valore dell'indice iVal della stringa
-   * rappresentativa di una funzione (function plot)
-   * Se ad esempio devo sommare due sinusoidi di 100 elementi, questa funzione verrà
-   * richiamata con iVal che va da 0 a 99.
-   *
-   * Quando questa funzione è chiamata line contiene già puntatori a costanti e variabili.
-   * Essa altera "intLine" durante il calcolo. Oltre a poter essere chiamata più volte
-   * dall'esterno con diversi valori di iVal, può essere anche chiamata ricorsivamente
-   * da se stessa durante l'elaborazione delle espressioni fra parentesi.
-   * La variabile contenente la stringa da analizzare, che rimane stabile da una chiamata
-   * dall'esterno all'altra di compute() è line.
-   * Ogni volta che compute() è chiamata dall'esterno ricopio line in intLine,
-   * mentre durante le chiamate di compute() a compute() non effettuo questa ricopiatura
+    /* Quando questa funzione è chiamata line contiene già puntatori a costanti e variabili.
+      Ne fa l'interpretazione. iVal è l'indice dell'array delle variabili. Se ad esempio devo sommare due sinusoidi di 100 elementi, questa funzione verrà richiamata con iVal che va da 0 a 99.
 */
    bool  unary=false, unaryMinus=false;
    static bool recursiveCall=false;
@@ -153,7 +143,9 @@ float CLineCalc::compute(int iVal){
    divisionByZero=false;
    domainError=false;
 
-   //Ogni volta che compute() è chiamata dall'esterno ricopio line in intLine, mentre durante le chiamate di compute() a compute() non effettuo questa ricopiatura.
+/* Questa funzione altera "intLine" durante il calcolo. Può essere chiamata più volte dall'esterno con diversi valori di iVal, e può essere anche chiamata ricorsivamente da se stessa durante l'elaborazione delle espressioni fra parentesi.
+La variabile contenente la stringa da analizzare, che rimane stabile da una chiamata dall'esterno all'altra di compute() è line.
+Ogni volta che compute() è chiamata dall'esterno ricopio line in intLine, mentre durante le chiamate di compute() a compute() non effettuo questa ricopiatura*/
    if(!recursiveCall)
        intLine=line;
    recursiveCall=false;
@@ -176,19 +168,14 @@ float CLineCalc::compute(int iVal){
        intLine[end]  =' ';
    }
 
-   // Se c'è una chiamata a funzione all'interno di intLine (contenuto di parentesi o stringa priva di parentesi) la eseguo:
+   // Prima valuto le chiamate a funzione
    ret=computeFun1(start, iVal); //funzioni con ()
    if(ret.length()>0){
-       // nel caso di ret=="1" significa solo che non ho trovato alcuna funzione, e questo è normale. Riporto il ret a "" per evitare che il programma chiamante di compute() emetta un warning:
-     if(ret=="1"){
-       ret="";
-     }else {
-       domainError=true;
-       return 0;
-     }
+     domainError=true;
+     return 0;
    }
 
-   //Per gli operatori prima applico quelli prioritari da sinistra verso destra:
+   //Prima applico gli operatori prioritari da sinistra verso destra:
    for(o=start; o<end; o++){
      if(intLine[o]!='*' && intLine[o]!='/')continue;
      //cerco il dato a sinistra
@@ -302,25 +289,16 @@ float CLineCalc::compute(int iVal){
 }
 
 QString CLineCalc::computeFun1(int start, int iVal){
- /* Funzione per il calcolo delle funzioni matematiche ad una sola variabile, tipo sin(),
-  * cos(), etc.
-  * Parte dal carattere di posizione start, cerca la funzione e l'argomento, e fa il calcolo.
-  * Il codice di ritorno è
-  * - "" nel caso in cui la funzione è estata calcolata senza errori
-  * - "1" nel caso in cui non sia trovata alcuna funzione
-  * -  un messaggio di errore nel caso in cui l'esecuzione abbiam causato un errore matematico
-  *    (ad es. domain error)
+ /* Percorre sequenzialmente la stringa line, fra gli indici start ed end, ed esegue da sinistra a destra tutte le chiamate a funzioni specificate dai puntatori pFun.
 */
   int i=0,j;
   float y=0;
   QString ret="";
   while(true){
     i=intLine.indexOf('&',start);
-    if(i==-1)
-        return "1";
+    if(i==-1)return "";
     j=i+1;
     while(intLine[j]==' ')j++;
-    //Ho individuato la posizione della funzione, ora cerco l'argomento-
     //A questo punto l'argomento della funzione può essere una costante (carattere '#') o una variabile (carattere '@')
     if(intLine[j]=='#'){
 //      if(pFun[i]==sqrt && pConst[j]<0)
@@ -336,7 +314,7 @@ QString CLineCalc::computeFun1(int start, int iVal){
     }
     intLine[i]='#';
     intLine[j]=' ';
-    pConst[i]=y;
+    pConst[i]=float(y);
     return ret;
   }
 }
@@ -572,15 +550,6 @@ QString fillNames(QString inpStr, int defaultFileNum){
 }
 
 
-void CLineCalc::getFileInfo(QList <int> fileNumsLst_, QList <QString> fileNamesLst_, QList <int> varMaxNumsLst_){
- /* Questa funzione serve per consentire il check sintattico sulle stringhe introdotte dall'utente, e quindi fornisce la lista dei numeri di files sono utilizzabili nelle funzioni di variabili.
-I nomi dei files vengono invece usati per creare la stringa corretta di tooltip per le variabili funzione (non attualmente, nov. 2016) che si usa "f1:", "f2:" ecc.)*/
-  fileNumsLst=fileNumsLst_;
-  fileNamesLst=fileNamesLst_;
-  varMaxNumsLst=varMaxNumsLst_;
-}
-
-
 QString CLineCalc::getNamesAndMatrix(QList <QString> nameList, float ** y_, QList <QString *> namesFullList, int selectedFileIdx){
   /* Questa funzione overloaded oltre all'usuale calcolo di getNamesAndMatrix, compila anche
    *  la riga "lineFullNames", in cui ai nomi codificati delle variabili (tipo "f1v2")
@@ -676,6 +645,14 @@ La costruzione di lineFullNames segue la seguente logica:
   return "";
 }
 
+
+void CLineCalc::getFileInfo(QList <int> fileNumsLst_, QList <QString> fileNamesLst_, QList <int> varMaxNumsLst_){
+ /* Questa funzione serve per consentire il check sintattico sulle stringhe introdotte dall'utente, e quindi fornisce la lista dei numeri di files sono utilizzabili nelle funzioni di variabili.
+I nomi dei files vengono invece usati per creare la stringa corretta di tooltip per le variabili funzione (non attualmente, nov. 2016) che si usa "f1:", "f2:" ecc.)*/
+  fileNumsLst=fileNumsLst_;
+  fileNamesLst=fileNamesLst_;
+  varMaxNumsLst=varMaxNumsLst_;
+}
 
 
 QString CLineCalc::getNamesAndMatrix( QList <QString> nameList, float ** y_){
@@ -775,7 +752,7 @@ void CLineCalc::getExplicitNames(QList<QList <QString> >  names_){
 }
 
 QString CLineCalc::getLine(QString line_, int defaultfileNum_){
-  /* Funzione che riceve la stringa che verrà utilizzata per il calcolo delle funzioni di grafici.
+  /* Funzione che riceve la stringa che verrà utilizata per il calcolo delle funzioni di grafici.
 
 Riceve la stringa, compila le versioni semplificate fa un po' di diagnostica e alloca spazio per i puntatori.
 
@@ -1049,7 +1026,7 @@ QString CLineCalc::subtr(float x1, float x2, float & y){
 }
 
 QString CLineCalc::power(float x1, float x2, float & y){
-   y=powf(x1,x2);
+   y=pow(x1,x2);
    return "";
 }
 
@@ -1059,8 +1036,7 @@ QString CLineCalc::prod(float x1, float x2, float & y){
 }
 
 QString CLineCalc::div(float x1, float x2, float & y){
-   if(x2==0)
-       return "division by zero";
+   if(x2==0)return "division by zero";
    y=x1/x2;
    return "";
 }
