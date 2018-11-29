@@ -12,7 +12,7 @@
 #include "CLineChart.h"
 #define max(a, b)  (((a) > (b)) ? (a) : (b))
 #define min(a, b)  (((a) < (b)) ? (a) : (b))
-#define NearInt(x) ((int)(x+0.5))
+#define NearInt(x) (int(x+0.5f))
 
 
 static bool isEven(int i)  {
@@ -109,8 +109,8 @@ La reimplementazione della funzione virtual resizeEvent in questo file contiene 
     ryAxis.addZeroLine=false;
     swarmPointSize=ssSquare;
 
-    px=NULL;
-    py=NULL;
+    px=nullptr;
+    py=nullptr;
     titleRectF=QRectF(0,0,0,0);
     tooltipRect.setWidth(5);
     tooltipRect.setHeight(5);
@@ -140,11 +140,11 @@ La reimplementazione della funzione virtual resizeEvent in questo file contiene 
 
 
     //Nelle seguenti righe faccio predisposizioni affinché nella routine Plot si possa prima deallocare (rispettivamente con delete, DeleteIMatrix e DeleteFMatrix) gli array e poi riallocarli con le dimensioni giuste.
-    cursorXValues=NULL;
-    cursorXValBkp=NULL;
+    cursorXValues=nullptr;
+    cursorXValBkp=nullptr;
     lCurveParam.clear();;
-    startIndex=NULL;
-    stopIndex=NULL;
+    startIndex=nullptr;
+    stopIndex=nullptr;
     pixelToIndexDX=CLineChart::CreateIMatrix(1,1);
     cursorYValues=CLineChart::CreateFMatrix(1,1);
     cursorYValBkp=CLineChart::CreateFMatrix(1,1);
@@ -392,7 +392,7 @@ Se minTic è diverso da 4, ad es. è 3, il numero di tacche consentito andrà da
     ret=0;
     goto Return;
   }
-  if(deltaTicStr==NULL){
+  if(deltaTicStr==nullptr){
     QMessageBox::critical(this, tr("TestLineChart"),
       tr("Error Allocating Space in \"computeTic\" within \"CLineChart\""), QMessageBox::Ok);
     ret=minTic;
@@ -492,7 +492,8 @@ char **CLineChart::CreateCMatrix(long NumRows, long NumCols){
     char **Matrix;
     //Allocaz. vettore puntatori alle righe:
     Matrix=new char*[NumRows];
-    if(Matrix==0) return 0;
+    if(Matrix==nullptr)
+        return nullptr;
   //Allocaz. matrice:
     Matrix[0]=new char[NumRows*NumCols];
     for(i=1; i<NumRows; i++)
@@ -506,11 +507,14 @@ float **CLineChart::CreateFMatrix(long NumRows, long NumCols){
     float **Matrix;
     //Allocaz. vettore puntatori alle righe:
     Matrix=new float*[NumRows];
-    if(Matrix==NULL)return NULL;
-    if(Matrix==0) return 0;
+    if(Matrix==nullptr)
+        return nullptr;
+    if(Matrix==nullptr)
+        return nullptr;
   //Allocaz. matrice:
     Matrix[0]=new float[NumRows*NumCols];
-    if(Matrix[0]==NULL)return NULL;
+    if(Matrix[0]==nullptr)
+        return nullptr;
     for(i=1; i<NumRows; i++)
         Matrix[i]=Matrix[0]+i*NumCols;
     return Matrix;
@@ -522,7 +526,8 @@ int **CLineChart::CreateIMatrix(long NumRows, long NumCols){
     int  **Matrix;
     //Allocaz. vettore puntatori alle righe:
     Matrix=new int *[NumRows];
-    if(Matrix==0) return 0;
+    if(Matrix==nullptr)
+        return nullptr;
   //Allocaz. matrice:
     Matrix[0]=new int[NumRows*NumCols];
     for(i=1; i<NumRows; i++)
@@ -534,20 +539,23 @@ int **CLineChart::CreateIMatrix(long NumRows, long NumCols){
 
 
 void CLineChart::DeleteCMatrix(char **Matrix){
-    if(Matrix==NULL) return;
+    if(Matrix==nullptr)
+        return;
     delete[] Matrix[0];
     delete[] Matrix;
 }
 
 int CLineChart::DeleteFMatrix(float **Matrix){
-    if(Matrix==NULL) return 1;
+    if(Matrix==nullptr)
+        return 1;
     delete[] Matrix[0];
     delete[] Matrix;
     return 0;
 }
 
 void CLineChart::DeleteIMatrix(int  **Matrix){
-    if(Matrix==NULL) return;
+    if(Matrix==nullptr)
+        return;
     delete[] Matrix[0];
     delete[] Matrix;
 }
@@ -559,19 +567,19 @@ Oltre che al momento della costruzione di CLineChart, e ad ogni suo ridimensiona
 */
 
   int numWidth,maxTic;
-  ticWidth.setX(max(4,(unsigned)(0.015f*plotRect.height())));
+  ticWidth.setX(qMax(4,int(0.015f*plotRect.height())));
   ticWidth.setY(ticWidth.x());
   svgOffset= max(6,plotRect.width()/100);
 
   //Stabilisco i tre font del grafico (baseFont, expFont, legendFont) ed attribuisco il baseFont al myPainter
   //Uso una logica DPI-aware
   QScreen *screen=QGuiApplication::primaryScreen();
-  myDPI=screen->logicalDotsPerInch();
+  myDPI=int(screen->logicalDotsPerInch());
   if(myDPI>100)
-    generalFontPx=max(min((int)(0.016f*(plotRect.height()+plotRect.width())),28),13);
+    generalFontPx=qMax(qMin(int(0.016f*(plotRect.height()+plotRect.width())),28),13);
   else
-     generalFontPx=max(min((int)(0.014f*(plotRect.height()+plotRect.width())),24),10);
-  onePixDPI=myDPI/(float)96;
+     generalFontPx=qMax(qMin(int(0.014f*(plotRect.height()+plotRect.width())),24),10);
+  onePixDPI=myDPI/float(96);
   int fontPxSize=generalFontPx;
   if(fontSizeType==fsFixed)
     fontPxSize=fixedFontPx;
@@ -579,22 +587,22 @@ Oltre che al momento della costruzione di CLineChart, e ad ogni suo ridimensiona
  if(fontPxSize>0){
    numFont. setPixelSize(fontPxSize);
    baseFont.setPixelSize(fontPxSize);
-   expFont.setPixelSize(EXPFRACTION*fontPxSize);
+   expFont.setPixelSize(int(EXPFRACTION*fontPxSize));
    lgdFont.setPixelSize(fontPxSize);
   }
   QFontMetrics fm(baseFont);
-  float fSmallHSpace=0.6*fm.width("a");
-  smallHSpace=fSmallHSpace;
-  if(fSmallHSpace<=2.0)
-    markHalfWidth=1.5*fSmallHSpace;
+  float fSmallHSpace=0.6f*fm.width("a");
+  smallHSpace=int(fSmallHSpace);
+  if(fSmallHSpace<=2.0f)
+    markHalfWidth=1.5f*fSmallHSpace;
   else
-    markHalfWidth=max(1.5*2.0,1.00*fSmallHSpace);
+    markHalfWidth=max(1.5f*2.0f,1.00f*fSmallHSpace);
 
   numWidth=fm.width("+0.000");
   textHeight=fm.height();
-  maxTic=plotRect.height()/(1.2*textHeight)/2-1;
+  maxTic=int(plotRect.height()/(1.2f*textHeight)/2.f)-1;
   minYTic=min(4,maxTic-3);
-  maxTic=plotRect.width()/(1.2*numWidth)-1;
+  maxTic=int(plotRect.width()/(1.2f*numWidth))-1;
   minXTic=min(4,maxTic-3);
 
 }
@@ -619,9 +627,9 @@ Pertanto l'indice di file è sempre 0 e l'indice della variabile è sempre 0.
   grayBrush.setStyle(Qt::SolidPattern);
   myPainter->setBrush(redBrush);
   if(yAxis.scaleType==stLin)
-    yZero=Y1+yAxis.minF*ratio.y;
+    yZero=Y1+int(yAxis.minF*ratio.y);
   else
-    yZero=Y1+yAxis.eMin *ratio.y;
+    yZero=Y1+int(yAxis.eMin *ratio.y);
 
   if(xAxis.scaleType==stLin){
      xStartIndex[0]=X0+margin + NearInt((px[0][startIndex[0]]-xAxis.minF)*ratio.x);
@@ -629,20 +637,21 @@ Pertanto l'indice di file è sempre 0 e l'indice della variabile è sempre 0.
      minXStep=px[0][stopIndex[0]]-px[0][startIndex[0]];
      for(i=startIndex[0]+1; i<=stopIndex[0]; i++)
        if(px[0][i]-px[0][i-1]<minXStep) minXStep=px[0][i]-px[0][i-1];
-     barWidth=max(2,0.7*(X1-X0)*minXStep/(px[0][stopIndex[0]]-px[0][startIndex[0]]));
+//     barWidth=max(2,0.7*(X1-X0)*minXStep/(px[0][stopIndex[0]]-px[0][startIndex[0]]));
+     barWidth=qMax(2,int(0.7f*(X1-X0)*minXStep/(px[0][stopIndex[0]]-px[0][startIndex[0]])));
   }else{
-    xStartIndex[0]=X0+margin + NearInt(log10(px[0][startIndex[0]]-xAxis.eMin)*ratio.x);
-    xStopIndex[0] =X0+margin + NearInt(log10(px[0][stopIndex[0]] -xAxis.eMin)*ratio.x);
-    minXStep=log10(px[0][stopIndex[0]]/px[0][startIndex[0]]);
+    xStartIndex[0]=X0+margin + NearInt(log10f(px[0][startIndex[0]]-xAxis.eMin)*ratio.x);
+    xStopIndex[0] =X0+margin + NearInt(log10f(px[0][stopIndex[0]] -xAxis.eMin)*ratio.x);
+    minXStep=log10f(px[0][stopIndex[0]]/px[0][startIndex[0]]);
     for(i=startIndex[0]+1; i<=stopIndex[0]; i++){
-      fAux=log10(px[0][i]/px[0][i-1]);
+      fAux=log10f(px[0][i]/px[0][i-1]);
       if(fAux<minXStep) minXStep=fAux;
     }
-    barWidth=max(2,0.7*(X1-X0)*minXStep/(log10(px[0][stopIndex[0]]/px[0][startIndex[0]])));
+    barWidth=qMax(2,int(0.7f*(X1-X0)*minXStep/(log10f(px[0][stopIndex[0]]/px[0][startIndex[0]]))));
   }
   // Nel caso in cui il numero di barre è molto modesto, la loro larghezza può risultare eccessiva rispetto al font usato per tracciare i numeri sugli assi. Faccio la correzione:
-  if (barWidth>1.5*generalFontPx)
-      barWidth=1.5*generalFontPx;
+  if (barWidth>1.5f*generalFontPx)
+      barWidth=int(1.5f*generalFontPx);
 // Se le barre sono larghe, la larghezza del cursore va aumentata rispetto al valore default:
   dataCurs.setWidth(max(dataCurs.width(),barWidth/2));
   // per centrare sempre il cursore dentro una bar, la differenza fra la larghezza della barra e quella del cursore dev'essere divisibile per due, ma comunque mai inferiore ad uno:
@@ -1016,12 +1025,12 @@ La presente funzione serve quindi a verificare i cambiamenti di efficienza che s
         if(xAxis.scaleType==stLin)
           x1f=ratio.x * (px[i][startIndex[i]]-sxmin)+X0;
         else
-          x1f=ratio.x * (log10(px[i][startIndex[i]])-sxmin)+X0;
+          x1f=ratio.x * (log10f(px[i][startIndex[i]])-sxmin)+X0;
         if(yAxis.scaleType==stLin)
           y1f=yAxis.width-yRatio * (py[i][igraf][startIndex[i]]-symin)+Y0;
         else
-          y1f=yAxis.width-yRatio * (log10(py[i][igraf][startIndex[i]])-symin)+Y0;
-        poly << QPoint((int)x1f,(int)y1f);
+          y1f=yAxis.width-yRatio * (log10f(py[i][igraf][startIndex[i]])-symin)+Y0;
+        poly << QPoint(int(x1f),int(y1f));
         //Tracciamento grafico
         for(icount=startIndex[i]+1; icount<=stopIndex[i]; icount++)	{
           if(xAxis.scaleType==stLin)
@@ -1031,7 +1040,7 @@ La presente funzione serve quindi a verificare i cambiamenti di efficienza che s
           if(yAxis.scaleType==stLin)
             yf=yAxis.width-yRatio*(py[i][igraf][icount] - symin) +Y0;
           else
-            yf=yAxis.width-yRatio*(log10(py[i][igraf][icount]) - symin) +Y0;
+            yf=yAxis.width-yRatio*(log10f(py[i][igraf][icount]) - symin) +Y0;
           poly << QPoint(xf,yf);
           pointsDrawn0++;
         } //Fine ciclo for tracciamento curve
@@ -1101,23 +1110,23 @@ L'unica differenza fra QtF e QtI sta nella linea "lineTo", la quint'ultima di co
       if(xAxis.scaleType==stLin)
         x1f=ratio.x * (px[i][startIndex[i]]-sxmin)+X0;
       else
-        x1f=ratio.x * (log10(px[i][startIndex[i]])-sxmin)+X0;
+        x1f=ratio.x * (log10f(px[i][startIndex[i]])-sxmin)+X0;
       if(yAxis.scaleType==stLin)
         y1f=yAxis.width-yRatio * (py[i][igraf][startIndex[i]]-symin)+Y0;
       else
-        y1f=yAxis.width-yRatio * (log10(py[i][igraf][startIndex[i]])-symin)+Y0;
-      path.moveTo(x1f,y1f);
+        y1f=yAxis.width-yRatio * (log10f(py[i][igraf][startIndex[i]])-symin)+Y0;
+      path.moveTo(double(x1f),double(y1f));
       //Tracciamento grafico
       for(icount=startIndex[i]+1; icount<=stopIndex[i]; icount++)	{
         if(xAxis.scaleType==stLin)
           xf=ratio.x * (px[i][icount] - sxmin) +X0;
         else
-          xf=ratio.x * (log10(px[i][icount]) - sxmin) +X0;
+          xf=ratio.x * (log10f(px[i][icount]) - sxmin) +X0;
         if(yAxis.scaleType==stLin)
           yf=yAxis.width-yRatio*(py[i][igraf][icount] - symin) +Y0;
         else
-          yf=yAxis.width-yRatio*(log10(py[i][igraf][icount]) - symin) +Y0;
-        path.lineTo(xf,yf);
+          yf=yAxis.width-yRatio*(log10f(py[i][igraf][icount]) - symin) +Y0;
+        path.lineTo(double(xf),double(yf));
         pointsDrawn0++;
       } //Fine ciclo for tracciamento curve
       pointsDrawn=max(pointsDrawn,pointsDrawn0);
@@ -1174,23 +1183,23 @@ Per la spiegazione vedere il commento alla funzione drawCurvesQtF.
       if(xAxis.scaleType==stLin)
         x1f=ratio.x * (px[i][startIndex[i]]-sxmin)+X0;
       else
-        x1f=ratio.x * (log10(px[i][startIndex[i]])-sxmin)+X0;
+        x1f=ratio.x * (log10f(px[i][startIndex[i]])-sxmin)+X0;
       if(yAxis.scaleType==stLin)
         y1f=yAxis.width-YRatio * (py[i][igraf][startIndex[i]]-symin)+Y0;
       else
-        y1f=yAxis.width-YRatio * (log10(py[i][igraf][startIndex[i]])-symin)+Y0;
-      path.moveTo(x1f,y1f);
+        y1f=yAxis.width-YRatio * (log10f(py[i][igraf][startIndex[i]])-symin)+Y0;
+      path.moveTo(double(x1f),double(y1f));
       //Tracciamento grafico
       for(icount=startIndex[i]+1; icount<=stopIndex[i]; icount++)	{
         if(xAxis.scaleType==stLin)
           xf=ratio.x * (px[i][icount] - sxmin) +X0;
         else
-          xf=ratio.x * (log10(px[i][icount]) - sxmin) +X0;
+          xf=ratio.x * (log10f(px[i][icount]) - sxmin) +X0;
         if(yAxis.scaleType==stLin)
           yf=yAxis.width-YRatio*(py[i][igraf][icount] - symin) +Y0;
         else
-          yf=yAxis.width-YRatio*(log10(py[i][igraf][icount]) - symin) +Y0;
-        path.lineTo(xf,yf);
+          yf=yAxis.width-YRatio*(log10f(py[i][igraf][icount]) - symin) +Y0;
+        path.lineTo(double(xf),double(yf));
         PointsDrawn0++;
       } //Fine ciclo for tracciamento curve
       pointsDrawn=max(pointsDrawn,PointsDrawn0);
@@ -1221,17 +1230,17 @@ void  CLineChart::drawMark(float X, float Y, int mark, bool markName){
       break;
     case 2:
       //Triangolino:
-      polygon<<QPoint(X-markHalfWidth,Y+markHalfWidth);
-      polygon<<QPoint(X+markHalfWidth,Y+markHalfWidth);
-      polygon<<QPoint(X          ,Y-markHalfWidth);
+      polygon<<QPoint(int(X-markHalfWidth),int(Y+markHalfWidth));
+      polygon<<QPoint(int(X+markHalfWidth),int(Y+markHalfWidth));
+      polygon<<QPoint(int(X)              ,int(Y-markHalfWidth));
       myPainter->drawPolygon(polygon);
       break;
     case 3:
        //Crocetta
-       path.moveTo(X-markHalfWidth,Y-markHalfWidth);
-       path.lineTo(X+markHalfWidth,Y+markHalfWidth);
-       path.moveTo(X-markHalfWidth,Y+markHalfWidth);
-       path.lineTo(X+markHalfWidth,Y-markHalfWidth);
+       path.moveTo(int(X-markHalfWidth),int(Y-markHalfWidth));
+       path.lineTo(int(X+markHalfWidth),int(Y+markHalfWidth));
+       path.moveTo(int(X-markHalfWidth),int(Y+markHalfWidth));
+       path.lineTo(int(X+markHalfWidth),int(Y-markHalfWidth));
        myPainter->drawPath(path);
        break;
     case 4:
@@ -1247,17 +1256,17 @@ void  CLineChart::drawMark(float X, float Y, int mark, bool markName){
       case 6:
         //Triangolino pieno:
         myPainter->setBrush(Qt::black);
-        polygon<<QPoint(X-markHalfWidth,Y+markHalfWidth);
-        polygon<<QPoint(X+markHalfWidth,Y+markHalfWidth);
-        polygon<<QPoint(X          ,Y-markHalfWidth);
+        polygon<<QPoint(int(X-markHalfWidth),int(Y+markHalfWidth));
+        polygon<<QPoint(int(X+markHalfWidth),int(Y+markHalfWidth));
+        polygon<<QPoint(int(X)              ,int(Y-markHalfWidth));
         myPainter->drawPolygon(polygon);
         break;
       case 7:
         //Crocetta dentro quadratino
-        path.moveTo(X-markHalfWidth,Y-markHalfWidth);
-        path.lineTo(X+markHalfWidth,Y+markHalfWidth);
-        path.moveTo(X-markHalfWidth,Y+markHalfWidth);
-        path.lineTo(X+markHalfWidth,Y-markHalfWidth);
+        path.moveTo(int(X-markHalfWidth),int(Y-markHalfWidth));
+        path.lineTo(int(X+markHalfWidth),int(Y+markHalfWidth));
+        path.moveTo(int(X-markHalfWidth),int(Y+markHalfWidth));
+        path.lineTo(int(X+markHalfWidth),int(Y-markHalfWidth));
         path.addRect(QRectF(X-markHalfWidth,Y-markHalfWidth,2*markHalfWidth,2*markHalfWidth));
         myPainter->drawPath(path);
         break;
@@ -1319,17 +1328,17 @@ void CLineChart::drawSwarm(void){
       if(yAxis.scaleType==stLin)
         y1f=yAxis.width-yRatio * (py[i][igraf][startIndex[i]]-symin)+Y0;
       else
-        y1f=yAxis.width-yRatio * (log10(py[i][igraf][startIndex[i]])-symin)+Y0;
+        y1f=yAxis.width-yRatio * (log10f(py[i][igraf][startIndex[i]])-symin)+Y0;
       x1=NearInt(x1f);
       y1=NearInt(y1f);
       if(xAxis.scaleType==stLin)
         xf=ratio.x * (px[i][startIndex[i]]-sxmin)+X0;
       else
-        xf=ratio.x * (log10(px[i][startIndex[i]])-sxmin)+X0;
+        xf=ratio.x * (log10f(px[i][startIndex[i]])-sxmin)+X0;
       if(yAxis.scaleType==stLin)
         yf=yAxis.width-yRatio * (py[i][igraf][startIndex[i]]-symin)+Y0;
       else
-        yf=yAxis.width-yRatio * (log10(py[i][igraf][startIndex[i]])-symin)+Y0;
+        yf=yAxis.width-yRatio * (log10f(py[i][igraf][startIndex[i]])-symin)+Y0;
       x=NearInt(xf);
       y=NearInt(yf);
       FC.getLine(x1,y1,x,y);
@@ -1337,12 +1346,13 @@ void CLineChart::drawSwarm(void){
       if(xAxis.scaleType==stLin)
         xf=ratio.x * (px[i][startIndex[i]] - sxmin) +X0;
       else
-        xf=ratio.x * (log10(px[i][startIndex[i]]) - sxmin) +X0;
+        xf=ratio.x * (log10f(px[i][startIndex[i]]) - sxmin) +X0;
       if(yAxis.scaleType==stLin)
         yf=yAxis.width-yRatio*(py[i][igraf][startIndex[i]] - symin) +Y0;
        else
-        yf=yAxis.width-yRatio*(log10(py[i][igraf][startIndex[i]]) - symin) +Y0;
-      x=xf+0.5; y=yf+0.5;
+        yf=yAxis.width-yRatio*(log10f(py[i][igraf][startIndex[i]]) - symin) +Y0;
+      x=xf+0.5f;
+      y=yf+0.5f;
       if(swarmPointSize==ssPixel)
         myPainter->drawPoint(QPointF(xf,yf));
       else
@@ -1357,8 +1367,8 @@ void CLineChart::drawSwarm(void){
           yf=yAxis.width-yRatio*(py[i][igraf][icount] - symin) +Y0;
         else
           yf=yAxis.width-yRatio*(log10(py[i][igraf][icount]) - symin) +Y0;
-        x=xf+0.5;
-        y=yf+0.5;
+        x=xf+0.5f;
+        y=yf+0.5f;
         if(FC.isInRect(x,y)){ //Traccio il punto
           if(swarmPointSize==ssPixel)
             myPainter->drawPoint(QPointF(xf,yf));
@@ -1371,12 +1381,13 @@ void CLineChart::drawSwarm(void){
       if(xAxis.scaleType==stLin)
         xf=ratio.x * (px[i][stopIndex[i]] - sxmin) +X0;
       else
-        xf=ratio.x * (log10(px[i][stopIndex[i]]) - sxmin) +X0;
+        xf=ratio.x * (log10f(px[i][stopIndex[i]]) - sxmin) +X0;
       if(yAxis.scaleType==stLin)
         yf=yAxis.width-yRatio*(py[i][igraf][stopIndex[i]] - symin) +Y0;
       else
-        yf=yAxis.width-yRatio*(log10(py[i][igraf][stopIndex[i]]) - symin) +Y0;
-      x=xf+0.5; y=yf+0.5;
+        yf=yAxis.width-yRatio*(log10f(py[i][igraf][stopIndex[i]]) - symin) +Y0;
+      x=xf+0.5f;
+      y=yf+0.5f;
       //Traccio l'ultimo punto :
       if(FC.isInRect(x,y)){ //Traccio il punto
         if(swarmPointSize==ssPixel)
@@ -1437,8 +1448,8 @@ int CLineChart::smartDrawUnit(QPainter * myPainter, QFont baseFont, int X, int Y
    if(text=="")
        return 0;
 //   baseFont.setPixelSize(12);
-   int expSize=0.7*baseFont.pixelSize();
-   int expOffs=0.4*baseFont.pixelSize();
+   int expSize=int(0.7f*baseFont.pixelSize());
+   int expOffs=int(0.4f*baseFont.pixelSize());
 
    // Fase0: caso speciale delle potenze di 10.
    if(text.mid(0,3)=="*10")
@@ -1569,12 +1580,12 @@ Questo ha comportato nel seguente if la sostituzione di "atLeft" con "atRight" e
     hOffset=2*smallHSpace;
     xPosition+=hOffset;
   }else if(hAdjust==atCenter){
-      xPosition-=(width1+width2)/2 +wBracket*(int)addBrackets;
+      xPosition-=(width1+width2)/2 +wBracket*int(addBrackets);
    }else{ //hAdjust=atRight
-      hOffset=1.5*smallHSpace;
+      hOffset=int(1.5f*smallHSpace);
       if(msg2!="")
         hOffset=smallHSpace;
-      xPosition-= width1+width2+2*wBracket*(int)addBrackets+hOffset;
+      xPosition-= width1+width2+2*wBracket*int(addBrackets)+hOffset;
   }
 
   //Scrittura parentesi sinistra:
@@ -1592,7 +1603,7 @@ Questo ha comportato nel seguente if la sostituzione di "atLeft" con "atRight" e
   //Scrittura del testo msg2 :
   myPainter->setFont(expFont);
   if(!Virtual && width2>0)
-      myPainter->drawText(xPosition+len,Y+vOffset-0.4*H2,msg2);
+      myPainter->drawText(xPosition+len,int(Y+vOffset-0.4*H2),msg2);
   len+=width2;
   myPainter->setFont(baseFont);
 
@@ -1726,9 +1737,8 @@ bool  CLineChart::fillPixelToIndexLog(int **pixelToIndexDX){
 }
 
 
-struct CLineChart::SMinMax CLineChart::findMinMax(float *vect, unsigned dimens)
+struct CLineChart::SMinMax CLineChart::findMinMax(float *vect, int dimens)
 {
-   unsigned icount;
    struct SMinMax vmM;
 
    vmM.Min=*vect;
@@ -1737,7 +1747,7 @@ struct CLineChart::SMinMax CLineChart::findMinMax(float *vect, unsigned dimens)
 //   float v[5];
 //   for (unsigned i=1; i<min(5,dimens); i++) v[i] =*(vect+i);
 
-   for (icount=1; icount<dimens; icount++)
+   for (int icount=1; icount<dimens; icount++)
    {
       vmM.Min=min(vmM.Min, *(vect+icount));
       vmM.Max=max(vmM.Max, *(vect+icount));
@@ -2571,7 +2581,7 @@ void  CLineChart::drawAllLabelsAndGrid(SAxis axis){
       ticInterval=ticInterv.y;
     }
     ticCount=0;
-     for(y=yAxis.width+Y0, auxd=(double)(yAxis.width+Y0),  yf=axis.scaleMin; y>=Y0-2;
+     for(y=yAxis.width+Y0, auxd=double(yAxis.width+Y0),  yf=axis.scaleMin; y>=Y0-2;
                auxd-=ticInterval, y=NearInt(auxd), yf+=axis.ticInterval)   	  {
       if(axis.type==atYR){ //caso di scala destra
         ticPath.moveTo(X1+1,y);
@@ -2593,9 +2603,9 @@ void  CLineChart::drawAllLabelsAndGrid(SAxis axis){
     }
     // Labels di asse:
     if(axis.halfTicNum)
-      yy=Y0+0.9*ticInterval;
+      yy=Y0+int(0.9f*ticInterval);
     else
-      yy=Y0+0.5*ticInterval;
+      yy=Y0+int(0.5f*ticInterval);
 //    if(axis.type==atYR)
 //      writeAxisLabel(X1+0.5*(1+axis.halfTicNum)*ticWidth.y() ,yy, axis,false);
 //    else{
@@ -2689,7 +2699,7 @@ void  CLineChart::drawAllLabelsAndGridDB(SAxis axis){
   }
 
   //Scrittura tacche e label numeriche:
-  value0=20.*axis.eMin;
+  value0=20.f*axis.eMin;
   for(i=0; i<numTics; i++){
     // Tacche:
     if(axis.type==atX){
@@ -2703,7 +2713,7 @@ void  CLineChart::drawAllLabelsAndGridDB(SAxis axis){
       ticPath.lineTo(X1-ticWidth.y(),pos[i]);
     }
     value=value0+i*DBStep;
-    sprintf(num,"%.0f",value);
+    sprintf(num,"%.0f",double(value));
     //Valore numerico:
     if(axis.type==atX){
         drawText2(pos[i],Y1,atCenter,atLeft,num,"",false,false);
@@ -2733,16 +2743,16 @@ void  CLineChart::drawAllLabelsAndGridDB(SAxis axis){
     goto Return;
   //Label "dB":
   if(axis.type==atX){
-    xx=X1-axis.ticInterval/2;
+    xx=X1-int(axis.ticInterval/2.0f);
     yy=Y1+ticWidth.x();
   }else{
     //Si ricordi che la label nel caso di assi sinistri (come questo) ha allineamento centrato.
     //L'eventualità che la label caschi in concidenza con un tick è trascurabile, quindi centro come se non vi fosse:
     //xx=(X0-ticWidth.y())/2;
     xx=X0/2;
-    yy=pos0+axis.ticInterval/2;
+    yy=pos0+int(axis.ticInterval/2.0f);
     if(numTicType==1)
-        yy=pos0+axis.ticInterval/3.5;
+        yy=pos0+int(axis.ticInterval/3.5f);
   }
   writeAxisLabel(xx,yy, axis,false);
 
@@ -2803,7 +2813,7 @@ void CLineChart::drawAllLabelsAndGridLog(SAxis axis){
       decInterval=pos[0]-pos[1];
       break;
     case 2:
-      decInterval= (float)(pos10+1)/(axis.eMax-axis.eMin);
+      decInterval= float(pos10+1)/(axis.eMax-axis.eMin);
       for(dec=1; dec<axis.eMax-axis.eMin; dec++){
          pos[dec]=pos[0]+(2*(axis.type==atX)-1)*dec*decInterval;
       }
@@ -2813,7 +2823,7 @@ void CLineChart::drawAllLabelsAndGridLog(SAxis axis){
         pos[axis.eMax-axis.eMin]=pos0;
       break;
     case 3:
-      decInterval= (float)(pos10+1)/(axis.eMax-axis.eMin);
+      decInterval= float(pos10+1)/(axis.eMax-axis.eMin);
       for(dec=0; dec<axis.eMax-axis.eMin; dec++){
         pos[5*dec]=pos[0]+(2*(axis.type==atX)-1)*dec*decInterval;
         for(tic=1; tic<5; tic++){
@@ -2961,7 +2971,10 @@ void CLineChart::paintEvent(QPaintEvent *ev)
         dataCol=QColor(100,100,100,180);  //Cursore bar, bianco 100/255, opaco 180/255
     QBrush selBrush(selCol), dataBrush(dataCol), dataBrush2(dataCol2);
     painter.setBrush(selBrush);
-    if(zoomSelecting)painter.drawRect(stZoomRectPos.x(), stZoomRectPos.y(),endZoomRectPos.x()-stZoomRectPos.x(), endZoomRectPos.y()-stZoomRectPos.y());
+    if(zoomSelecting)
+        painter.drawRect(stZoomRectPos.x(), stZoomRectPos.y(),
+                         endZoomRectPos.x()-stZoomRectPos.x(),
+                         endZoomRectPos.y()-stZoomRectPos.y());
     if(dataCursVisible){
         painter.setBrush(dataBrush);
         painter.drawRect(dataCurs);
@@ -3011,7 +3024,7 @@ QString CLineChart::makeSvg(QString fullName, bool issueMsg){
 
     generator.setFileName(fullName);
     //I seguenti fattori 0,85 non ci dovrebbero essere. Non è chiaro perché con essi il file SVG viene più centrato.
-    generator.setSize(QSize(0.85*geometry().width(), 0.85*geometry().height()));
+    generator.setSize(QSize(int(0.85f*geometry().width()), int(0.85f*geometry().height())));
 
       myPainter->end();
       myPainter->begin(&generator);
@@ -3128,7 +3141,7 @@ void CLineChart::markSingle(int iFile, int iVSFile, int iPlot, int iTotPlot, boo
   if(filesInfo[iVSFile].variableStep )
     indexSX=max(0,pixelToIndexDX[iVSFile][netCursorX]-1);
   else{
-    indexSX=(fCursorX-px[iFile][0])/(px[iFile][1]-px[iFile][0]);
+    indexSX=int((fCursorX-px[iFile][0])/(px[iFile][1]-px[iFile][0]));
   }
 
     if(cursorX<xStartIndex[iFile] || cursorX>=xStopIndex[iFile]){
@@ -3262,7 +3275,7 @@ void CLineChart::markAuto(){
       }else{
         for(int ii=1; ii<=MAXAUTOMARKS; ii++){
           if(xVarParam.isMonotonic)
-             deltaIndex=max(1,1.8*markHalfWidth/ratio.x/(px[i][1]-px[i][0]));
+             deltaIndex=qMax(1,int(1.8f*markHalfWidth/ratio.x/(px[i][1]-px[i][0])));
           else
             deltaIndex=1;
           index=startIndex[i]+aux*(ii-0.5)*indexRange+deltaIndex*(iTotPlot-nFiles/2);
@@ -3417,7 +3430,7 @@ QString CLineChart::goPlot(bool Virtual, bool /*IncludeFO*/){
   startIndex=new int[nFiles];
   stopIndex=new int[nFiles];
 
-  if(stopIndex==NULL)
+  if(stopIndex==nullptr)
       return "Unable to allocate variables in CLineChart!";
   myImage->fill(Qt::white);
   if(copying)
@@ -3458,7 +3471,7 @@ QString CLineChart::goPlot(bool Virtual, bool /*IncludeFO*/){
   if(writeTitle1){
       myPainter->setFont(baseFont);
       titleHeight=myPainter->fontMetrics().height();
-      Y0=1.4*titleHeight;
+      Y0=int(1.4*titleHeight);
     QTextOption txtOpt;
     txtOpt.setAlignment(Qt::AlignCenter);
     int addSpace=0;
@@ -3481,7 +3494,7 @@ QString CLineChart::goPlot(bool Virtual, bool /*IncludeFO*/){
 
   myPainter->setPen(framePen);
   //Vertici rettangolo di visualizzazione (X0-X1-Y0-Y1):
-  X0=yAxis.maxTextWidth+1.5*ticWidth.y()+smallHSpace;
+  X0=yAxis.maxTextWidth+int(1.5f*ticWidth.y())+smallHSpace;
   if(makingSVG)X0+=svgOffset;
   if(printing)X0+=plotRect.x();
   //note:
@@ -3543,7 +3556,8 @@ Se X, oltre che monotona crescente è anche costituita da campioni equispaziati 
       while(px[iFile][iPoint]<R.Right && iPoint<nPoints-1);
       stopIndex[iFile]=iPoint;
       }else{
-        startIndex[iFile]=(xAxis.scaleFactor*xAxis.scaleMin-px[iFile][0])/(px[iFile][1]-px[iFile][0]);
+        startIndex[iFile]=int((xAxis.scaleFactor*xAxis.scaleMin-px[iFile][0])/
+                                 (px[iFile][1]-px[iFile][0]));
         startIndex[iFile]=max(0,startIndex[iFile]);
         startIndex[iFile]=min(nPoints,startIndex[iFile]);
         stopIndex[iFile]= NearInt((xAxis.scaleFactor*xAxis.scaleMax-px[iFile][0])/ (px[iFile][1]-px[iFile][0]))+1;
@@ -3558,29 +3572,29 @@ Se X, oltre che monotona crescente è anche costituita da campioni equispaziati 
   //***
   //Fase 4) preparazione assi con scrittura ticmarks e label di asse
   if(plotType==ptBar)
-    margin=max(1,0.42*(X1-X0)/(stopIndex[0]-startIndex[0]+0.84));
+    margin=qMax(1,int(0.42f*(X1-X0)/(stopIndex[0]-startIndex[0]+0.84f)));
   else
     margin=0;
   // ampiezza assi e intertacche
   xAxis.width=X1-X0-2*margin;
   yAxis.width=Y1-Y0;
   if(xAxis.scaleType==stLin)
-    ratio.x= (float)xAxis.width / (xAxis.scaleMax-xAxis.scaleMin);
+    ratio.x= float(xAxis.width) / (xAxis.scaleMax-xAxis.scaleMin);
   else
-    ratio.x= (float)xAxis.width / (xAxis.eMax-xAxis.eMin);
+    ratio.x= float(xAxis.width) / (xAxis.eMax-xAxis.eMin);
   if(yAxis.scaleType==stLin)
-    ratio.y= (float)yAxis.width / (yAxis.scaleMax-yAxis.scaleMin);
+    ratio.y= float(yAxis.width) / (yAxis.scaleMax-yAxis.scaleMin);
   else
-    ratio.y= (float)yAxis.width / (yAxis.eMax-yAxis.eMin);
+    ratio.y= float(yAxis.width) / (yAxis.eMax-yAxis.eMin);
   ticInterv.x=   xAxis.ticInterval * ratio.x;
   ticInterv.y=   yAxis.ticInterval * ratio.y;
   ratio.x /= xAxis.scaleFactor;
   ratio.y /= yAxis.scaleFactor;
   if(twinScale){
     if(ryAxis.scaleType==stLin)
-      ratio.ry= (float)yAxis.width / (ryAxis.scaleMax-ryAxis.scaleMin);
+      ratio.ry= float(yAxis.width) / (ryAxis.scaleMax-ryAxis.scaleMin);
     else
-      ratio.ry= (float)yAxis.width / (ryAxis.eMax-ryAxis.eMin);
+      ratio.ry= float(yAxis.width) / (ryAxis.eMax-ryAxis.eMin);
     ticInterv.ry=  ryAxis.ticInterval * ratio.ry;
     ratio.ry /= ryAxis.scaleFactor;
   }
@@ -3622,8 +3636,8 @@ Se X, oltre che monotona crescente è anche costituita da campioni equispaziati 
       drawSwarm();
     break;
   }
-  drawTimeMs=timer.elapsed();
-  drawTimeUs=timer.nsecsElapsed()/1000;
+  drawTimeMs=int(timer.elapsed());
+  drawTimeUs=int(timer.nsecsElapsed()/1000.f);
   //  qDebug() << "Drawing time: " << timer.elapsed() << "/ms";
   //Qui alloco lo spazio per i valori numerici da leggere in corrispondenza del cursore dati, anche se l'effettivo assegnamento dei valori avverrà nella routine "giveValues".
   delete cursorXValues;
@@ -3640,7 +3654,7 @@ Se X, oltre che monotona crescente è anche costituita da campioni equispaziati 
   cursorYValBkp=CLineChart::CreateFMatrix(nFiles,MaxPlots);
   //sPlotTime=str.number((clock()-t1)/(float)CLK_TCK,'g',3);
   update();
-  return NULL;
+  return nullptr;
 }
 
 
@@ -3749,9 +3763,10 @@ QString CLineChart::print(QPrinter * printer, bool thinLines){
     return ret;
   }
   //Riduco un poco per avere un certo margine:
-  prnRect.setWidth(0.9*prnRect.width());
-  prnRect.setHeight(0.9*prnRect.height());
-  int xmargin=0.05*prnRect.width(), ymargin=0.05*prnRect.height();
+  prnRect.setWidth(int(0.9f*prnRect.width()));
+  prnRect.setHeight(int(0.9f*prnRect.height()));
+  int xmargin=int(0.05f*prnRect.width()),
+          ymargin=int(0.05f*prnRect.height());
   //Devo modificare printRect per mantenere l'aspect ratio di plotRect:
   if(prnRect.height()/prnRect.width() > aspectRatio){
     plotRect=QRect(xmargin,ymargin, prnRect.width(), aspectRatio*prnRect.width());
@@ -3973,8 +3988,8 @@ Significato delle variabili passate (solo fino a maxVal sono usate per scale log
     }else if(minVal==0 || maxVal==0){
       myAxis.done=2;
     }else{
-      fAux=fabs((minVal-maxVal)/maxVal);
-      if(fAux<0.0001)
+      fAux=fabsf((minVal-maxVal)/maxVal);
+      if(fAux<0.0001f)
         myAxis.done=1;
       else
         myAxis.done=2;
@@ -3984,7 +3999,7 @@ Significato delle variabili passate (solo fino a maxVal sono usate per scale log
     if(Max.Value*Min.Value<=0) {
       pmax=plus;
       pmin=plus;
-    }else if(fabs(Max.Value) >= fabs(Min.Value)){
+    }else if(fabsf(Max.Value) >= fabsf(Min.Value)){
        pmax=plus;
        pmin=minus;
     }else{
@@ -3995,11 +4010,11 @@ Significato delle variabili passate (solo fino a maxVal sono usate per scale log
     for(icifra=1; icifra<=3; icifra++){
       float f1, f2;
 //      float f3;
-      f1=Max.Value*pow(10,-(float)Max.ie);
-      f2=Min.Value*pow(10,-(float)Min.ie);
+      f1=Max.Value*powf(10,-float(Max.ie));
+      f2=Min.Value*powf(10,-float(Min.ie));
 //      f3=fabs(f1-f2-1.2);
       //caso particolarissimo da trattare separatamente da tutti gli altri:
-      if( fabs(f1-f2-1.2)<1e-5  &&  Max.i3==0 && Max.i4==0){
+      if( fabsf(f1-f2-1.2f)<1e-5f  &&  Max.i3==0 && Max.i4==0){
         Max.roundValue=Max.Value;
         Min.roundValue=Min.Value;
         myAxis.done = 2;
@@ -4039,35 +4054,35 @@ Significato delle variabili passate (solo fino a maxVal sono usate per scale log
     myAxis.scaleMax = Max.roundValue;
   }
   /* Calcolo del numero di tacche (sempre fra minTic e minTic+3)*/
-  sprintf(buffer,"%+10.3e",Max.roundValue);
+  sprintf(buffer,"%+10.3e",double(Max.roundValue));
   sscanf(buffer+7, "%u", &iermx);
-  sprintf(buffer,"%+10.3e",Min.roundValue);
+  sprintf(buffer,"%+10.3e",double(Min.roundValue));
   sscanf(buffer+7, "%u", &iermn);
   if(myAxis.done != 2){
     ntic=minTic+1;
   }else{
     //Il seguente calcolo di irmn2 verrà sfruttato per il calcolo del numero di decimali sulle tacche
-    sprintf(buffer,"%+10.3e",Min.roundValue);
+    sprintf(buffer,"%+10.3e",double(Min.roundValue));
     sscanf(buffer+3, "%1u", &irmn2);
     ntic=computeTic(Min.roundValue,Max.roundValue,minTic);
     if(ntic==minTic)myAxis.halfTicNum=true;
   }
   /* Distanza tra le tacche: */
-  myAxis.ticInterval= (myAxis.scaleMax-myAxis.scaleMin) / ((float)ntic+1);
+  myAxis.ticInterval= (myAxis.scaleMax-myAxis.scaleMin) / (float(ntic)+1);
   if(myAxis.halfTicNum) myAxis.ticInterval/=2;
 
   /* L'algoritmo fin qui attivato non si comporta male. Il suo principale difetto è che spesso allarga gli estremi della scala, sempre con il vincolo di un riempimento  non inferiore all'80% quando non sarebbe necessario. Ad es. se gli estremi di una variabile sono 0-35, l'algoritmo calcola 0-40 con ntic=7.
  Pertanto qui effettuo un correttivo:  se il grafico ci sta tra la prima tacca e l'estremo destro, ovvero fra l'estremo sinistro e l'ultima tacca, allora il numero di tacche è ridotto di uno e la tacca rispettivamente sinistra o destra diventa l'estremo sinistro o destro.
  */
   if(include0==0 && myAxis.done==2 && !myAxis.halfTicNum){
-    if(minVal>0.9999*(myAxis.scaleMin+myAxis.ticInterval)){
+    if(minVal>0.9999f*(myAxis.scaleMin+myAxis.ticInterval)){
       myAxis.scaleMin=myAxis.scaleMin+myAxis.ticInterval;
       ntic--;
-      myAxis.ticInterval = (myAxis.scaleMax-myAxis.scaleMin) / ((float)ntic+1);
-    }else if(maxVal<1.0001*(myAxis.scaleMax-myAxis.ticInterval)){
+      myAxis.ticInterval = (myAxis.scaleMax-myAxis.scaleMin) / (float(ntic)+1);
+    }else if(maxVal<1.0001f*(myAxis.scaleMax-myAxis.ticInterval)){
       myAxis.scaleMax=myAxis.scaleMax-myAxis.ticInterval;
       ntic--;
-      myAxis.ticInterval = (myAxis.scaleMax-myAxis.scaleMin) / ((float)ntic+1);
+      myAxis.ticInterval = (myAxis.scaleMax-myAxis.scaleMin) / (float(ntic)+1);
     }
   }
 
@@ -4087,7 +4102,7 @@ ComputeScaleFactor:
      myAxis.scaleExponent=0;
   else
     myAxis.scaleExponent=(aux-(aux<0))/3*3;
-  scaleFactor=pow(10.0f,(float)myAxis.scaleExponent);
+  scaleFactor=powf(10.0f,float(myAxis.scaleExponent));
   myAxis.scaleFactor=scaleFactor;
   myAxis.scaleMax/=scaleFactor;
   myAxis.scaleMin/=scaleFactor;
@@ -4103,11 +4118,11 @@ ComputeScaleFactor:
   char num[10], format[5]="%.1f";
   yf=myAxis.scaleMin;
   sprintf(format+2,"%1df",max(myAxis.ticDecimals,0));
-  sprintf(num,format,myAxis.scaleMax);
+  sprintf(num,format,double(myAxis.scaleMax));
   sscanf(num,"%f",&YY);
   if(myAxis.done==0){
     aux=myPainter->fontMetrics().width(num);
-    sprintf(num,format,myAxis.scaleMin);
+    sprintf(num,format,double(myAxis.scaleMin));
     aux=max(aux,myPainter->fontMetrics().width(num));
     goto Return;
   }
@@ -4123,10 +4138,10 @@ ComputeScaleFactor:
         break;
     }
     sprintf(format+2,"%1df",max(myAxis.ticDecimals,0));
-    sprintf(num,format,yf);
+    sprintf(num,format,double(yf));
     aux=max(aux,myPainter->fontMetrics().width(num));
     yf+=myAxis.ticInterval*(1+myAxis.halfTicNum);
-    sprintf(num,format,yf);
+    sprintf(num,format,double(yf));
     sscanf(num,"%f",&yy);
   }while(yy<=YY);
  Return:

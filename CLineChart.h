@@ -48,7 +48,7 @@ struct SUserLabel {
 struct SFloatRect2{float Left,Right,LTop,LBottom,RTop,RBottom;};
 
 #include "suppFunctions.h"
-#define RATIOLIM 0.80001
+#define RATIOLIM 0.80001f
 #define MAXAUTOMARKS 4
 #define MAXMANUMARKS 8
 #define MAXLOGTICS 26  //Cinque tacche per decade, cinque decadi più una
@@ -350,7 +350,7 @@ private:
   SXYValues giveValues(int cursorX, bool interpolation, bool xDdiff, bool yDdiff);
   SFloatRect2 giveZoomRect(int startSelX, int startSelY, int X, int Y);
   QString goPlot(bool Virtual, bool includeFO);
-  struct SMinMax findMinMax(float * vect, unsigned dimens);
+  struct SMinMax findMinMax(float * vect, int dimens);
   void keyPressEvent(QKeyEvent * event) override;
   void mark(bool store);
   void markAll();
