@@ -8,7 +8,8 @@ MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
 {
-
+    ui->setupUi(this);
+    move(200,200);
 
     qreal factorW;
     qreal factorH;
@@ -37,8 +38,6 @@ MainWindow::MainWindow(QWidget *parent) :
     setMaximumWidth(int(factorW*originalMaxWidth));
     setMinimumWidth(int(factorW*originalMinWidth));
 
-    move(200,200);
-    ui->setupUi(this);
     ui->plotBtn->setDefault(true);
     connect(ui->lineChart,SIGNAL(valuesChanged(SXYValues,bool,bool)),this, SLOT(chartValuesChanged(SXYValues,bool,bool)));
     ui->lineChart->linearInterpolate=false;
@@ -65,14 +64,14 @@ MainWindow::~MainWindow()
 }
 
 void MainWindow::chartValuesChanged(SXYValues values, bool hDifference, bool vDifference){
-    QString Msg;
-    Msg=Msg.setNum(values.X[0],'g',4);
+    QString msg;
+    msg=msg.setNum(values.X[0],'g',4);
     if(hDifference)
-      Msg= "*"+Msg;
-    ui->xValueLbl->setText(Msg);
-    Msg=Msg.setNum(values.Y[0][0],'g',4);
-    if(vDifference) Msg= "*"+Msg;
-    ui->yValueLbl->setText(Msg);
+      msg= "*"+msg;
+    ui->xValueLbl->setText(msg);
+    msg=msg.setNum(values.Y[0][0],'g',4);
+    if(vDifference) msg= "*"+msg;
+    ui->yValueLbl->setText(msg);
 }
 
 void MainWindow::on_diffTBtn_clicked()
@@ -201,6 +200,7 @@ void MainWindow::on_dataTBtn_clicked(bool checked)
     ui->diffTBtn->setEnabled(checked);
 
 }
+
 
 void MainWindow::on_titleBtn_clicked(bool checked)
 {

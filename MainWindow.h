@@ -21,17 +21,17 @@ protected:
     void showEvent(QPaintEvent *ev_);
 
 public:
-    explicit MainWindow(QWidget *parent = 0);
+    explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
 private slots:
+    void chartValuesChanged(SXYValues values, bool hDifference, bool vDifference);
     void on_plotBtn_clicked();
+    void on_dataTBtn_clicked(bool checked);
     void on_diffTBtn_clicked();
     void on_infoBtn_clicked();
     void on_interpolateBox_clicked(bool checked);
     void on_lineEdit_returnPressed();
-    void on_dataTBtn_clicked(bool checked);
-    void chartValuesChanged(SXYValues values, bool hDifference, bool vDifference);
     void on_titleBtn_clicked(bool checked);
     void on_optionsBtn_clicked();
 

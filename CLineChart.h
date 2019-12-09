@@ -12,12 +12,21 @@
 
 #define MAXFILES 8  //numero massimo di files (le linee inizialmente visualizzate sono invece 3)
 #define MAXVARS 15  //Numero massimo di variabili nella lista (escluso il tempo)
+
+#include "SuppFunctions.h"
+#define RATIOLIM 0.799f
+#define MAXAUTOMARKS 4
+#define MAXMANUMARKS 8
+#define MAXLOGTICS 26  //Cinque tacche per decade, cinque decadi più una
+#define EXPFRACTION 0.75f  //dimensioni dell'esponente in frazione delle dimensioni della base
+
+
 struct SFileInfo {
-    bool frequencyScan; // CURRENLY NOT USED in CLineChart
+    bool frequencyScan; // CURRENTLY NOT USED in CLineChart
     bool variableStep; //Tells if points are constantly spaced or not. Normally CLineChart is used with variableStep files. If it is known that the step is constant (i.e. points equally spaced) some faster algorithms are used in some contingencies
-    int fileNum, // CURRENLY NOT USED in CLineChart
+    int fileNum, // CURRENTLY NOT USED in CLineChart
     numOfPoints; //The total number of points contained in the considered file (every point will have an x-axis value, e.g. a time for simulations)
-    float timeShift; // CURRENLY NOT USED in CLineChart
+    float timeShift; // CURRENTLY NOT USED in CLineChart
     QString name; //A file name used by CLineChart legends
 };
 
@@ -47,13 +56,6 @@ struct SUserLabel {
 
 struct SFloatRect2{float Left,Right,LTop,LBottom,RTop,RBottom;};
 
-#include "suppFunctions.h"
-#define RATIOLIM 0.80001f
-#define MAXAUTOMARKS 4
-#define MAXMANUMARKS 8
-#define MAXLOGTICS 26  //Cinque tacche per decade, cinque decadi più una
-#define EXPFRACTION 0.75  //dimensioni dell'esponente in frazione delle dimensioni della base
-
 class QCursor;
 
 enum EPlotType{ptLine,ptBar, ptSwarm};
@@ -62,6 +64,7 @@ enum EScaleType {stLin, stDB, stLog};
 enum ESwarmPointSize {ssPixel, ssSquare};
 enum EDrawType {dtMC, //Filtraggio con gli algoritmi di MC, come sviluppati
                       //nell'implementazione storica BCB
+       dtMcD, //come dtMC ma con uso di double invece di float
        dtQtF, //assenza di filtraggio e uso della funzione painter.lineTo fra numeri float
        dtQtI,//assenza di filtraggio e uso della funzione painter.lineTo fra numeri int.
        dtPoly}; //assenza di filtraggio e uso di Polygon invece di drawPath.
@@ -102,7 +105,7 @@ public:
     enum EAxisType {atX, atYL, atYR};
 private:
     struct SDigits{
-        unsigned i1,i2,i3,i4;
+        int i1,i2,i3,i4;
       int ie;
         float Value, roundValue;
         char Sign;
@@ -157,54 +160,118 @@ private:
 /*$$$*********************************************************************************/
 /***********Inizio definizione della classe FilterClip*******************************/
 /*************************************************************************************/
-    class CFilterClip{
-  /* Questa classe implementa le funzioni necessarie per
-    1. filtrare da grafici punti ridondanti
-    2. fare una ClipRegion manuale in quanto wuella standard di Windows non ha effetto
-       sulle metafile una volta che queste ultime siano state aperte dal programma di
-       destinazione.
-    Per quanto riguarda la funzione 1 viene definita una striscia intorno ad una retta:
-    se un dato punto dsi trova entro la striscia definita dai due punti precedenti
-    può essere filtrato via.
-      OCT '98. L'algoritmo della striscia semplice funziona erroneamente in alcuni casi:
-        se ad es. ho un overshoot di un solo pixel e poi si torna indietro restando nella
-        striscia se non adotto correttivi il punto di picco dell'overshoot viene escluso dal
-        grafico. Pertanto devo includere nel grafico oltre che i punti fuori della striscia
-        anche quelli che "tornano indietro". Questo risultato lo ottengo considerando il
-        segno del prodotto scalare di un vettore rappresentativo, in direzione e verso,
-        della retta (LineVector), e un vettore congiungente penultimo e ultimo punto
-        considerato.
-    Per quanto riguarda la funzione 2 essa  implementata nel metodo "GiveRectIntersect"
-    che dà l'intersezione di una retta orientata con un rettangolo.
-  */
-        public:
-          bool strongFilter; //Se  true vuol dire che sto facendo un Copy e il LineChart
-                               //di cui FC fa parte ha StrongFilter=true.
-          struct FloatPoint{float X,Y;};
-            float maxErr; //SemiLarghezza della striscia
-            CFilterClip(void);
-            bool getLine(float X1, float Y1, float X2, float Y2); //si passano le coordinate
-                //di due punti per cui passa la retta, e si definisce in tal modo la retta di
-                //riferimento. Se i due punti passati erano coincidenti, la retta non  definibile
-                //e la funzione ritorna false;
-            void getRect(int X0, int Y0, int X1, int Y1);
-              int giveRectIntersect(FloatPoint & I1, FloatPoint &I2);
-                bool isRedundant(float X, float Y); //ritorna true se il punto passato non  all'interno della striscia
-            bool isInRect(float X, float Y); //ritorna true se il punto passato  all'interno del rettangolo
-        private:
-          struct FloatRect{	float Top, Bottom, Left, Right;};
-            float X1,Y1,X2,Y2;
-            FloatRect R; //Rettangolo del grafico su cui effettuare il taglio delle curve
-              FloatPoint Vector;  //vettore che mi dà direz. e verso della StraightLine
-            bool lineDefined;
-            float A, B, C,  //coefficienti dell'equazione della retta e sqrt(A^2+B^2)
-                        aux, lastX, lastY;
-            float inline giveX(float Y), giveY(float X);
-            bool giveX(float Y, float &X), giveY(float X, float &Y);
-        };
+class CFilterClip{
+/* Questa classe implementa le funzioni necessarie per
+  1. filtrare da grafici punti ridondanti
+  2. fare una ClipRegion manuale in quanto wuella standard di Windows non ha effetto
+     sulle metafile una volta che queste ultime siano state aperte dal programma di
+     destinazione.
+  Per quanto riguarda la funzione 1 viene definita una striscia intorno ad una retta:
+  se un dato punto dsi trova entro la striscia definita dai due punti precedenti
+  può essere filtrato via.
+    OCT '98. L'algoritmo della striscia semplice funziona erroneamente in alcuni casi:
+      se ad es. ho un overshoot di un solo pixel e poi si torna indietro restando nella
+      striscia se non adotto correttivi il punto di picco dell'overshoot viene escluso dal
+      grafico. Pertanto devo includere nel grafico oltre che i punti fuori della striscia
+      anche quelli che "tornano indietro". Questo risultato lo ottengo considerando il
+      segno del prodotto scalare di un vettore rappresentativo, in direzione e verso,
+      della retta (LineVector), e un vettore congiungente penultimo e ultimo punto
+      considerato.
+  Per quanto riguarda la funzione 2 essa  implementata nel metodo "GiveRectIntersect"
+  che dà l'intersezione di una retta orientata con un rettangolo.
+*/
+  public:
+    bool strongFilter; //Se  true vuol dire che sto facendo un Copy e il LineChart
+                       //di cui FC fa parte ha StrongFilter=true.
+    struct FloatPoint{float X,Y;};
+    float maxErr; //SemiLarghezza della striscia
+    CFilterClip(void);
+    bool getLine(float X1, float Y1, float X2, float Y2); //si passano le coordinate
+        //di due punti per cui passa la retta, e si definisce in tal modo la retta di
+        //riferimento. Se i due punti passati erano coincidenti, la retta non  definibile
+        //e la funzione ritorna false;
+    void getRect(int X0, int Y0, int X1, int Y1);
+    int giveRectIntersect(FloatPoint & I1, FloatPoint &I2);
+    bool isRedundant(float X, float Y); //ritorna true se il punto passato non  all'interno della striscia
+    bool isInRect(float X, float Y); //ritorna true se il punto passato  all'interno del rettangolo
+  private:
+    struct FloatRect{	float Top, Bottom, Left, Right;};
+    float X1,Y1,X2,Y2;
+    FloatRect R; //Rettangolo del grafico su cui effettuare il taglio delle curve
+    FloatPoint Vector;  //vettore che mi dà direz. e verso della StraightLine
+    bool lineDefined;
+    float A, B, C,  //coefficienti dell'equazione della retta e sqrt(A^2+B^2)
+          aux, lastX, lastY;
+    float inline giveX(float Y), giveY(float X);
+    bool giveX(float Y, float &X), giveY(float X, float &Y);
+};
 /*$$$***********************************************************************/
 /*************Fine definizione della classe FilterClip**********************/
 /***************************************************************************/
+
+
+/*$$$*********************************************************************************/
+/***********Inizio definizione della classe FilterClipD*******************************/
+/*************************************************************************************/
+class CFilterClipD{
+/* Classe variante di CFilterClip, creata nel Dicembre 2018.
+ * L'obiettivo per la quale è stata realizzata era verificare se l'uso di numeri double
+ * velocizzasse o rallentasse l'esecuzione.
+ * La domanda era legittima in quanto il lineTo() di painter richiede dei double, e l'uso
+ * di float comporta continue conversioni di formato. L'utilizzo estensivo di double,
+ * però comporta di lavorare con uin numero maggiore di bytes per numero, e comunque di
+ * fare conversione dai dati interni delle matrici contenenti i risultati delle simulazioni
+ * da fload a double.
+ *
+ * Il risultato è stato sorprendente (e riproducibile attraverso test TestLineChart) i tempi
+ * di calcolo sono paragonabili nei due casi se uso linee di spessore di un pixel, mentre
+ * sono 50 volte più lenti se uso linee a due pixel. In sostanza si ottiene la seguente
+ * situazione:
+ * - i grafici con drawCurves() e CFilterClip e numeri sempre float sono paragonabili nei
+ *   tempi a quelli ottenibili con tutte le atre funzioni: drawCurvesD(),
+ *   drawCurvedPoly(), drawCurvesQtF(), drawCurvesQtI()
+ * - i grafici con drawCurves() e CFilterClip e numeri sempre float sono enormemente più
+ *   veloci (50 volte) di quelli ottenibili con tutte le atre funzioni: drawCurvesD(),
+ *   drawCurvedPoly(), drawCurvesQtF(), drawCurvesQtI()
+ * La ragione di queste forti differenze è per me oscura. Comunque la soluzione da
+ * scegliere è semmplice:
+ * - usare sempre drawCurves()
+ * - lasciare nel codice le altre funzioni, per futuri test.
+ *   */
+    public:
+      bool strongFilter; //Se  true vuol dire che sto facendo un Copy e il LineChart
+                         //di cui FC fa parte ha StrongFilter=true.
+      struct DoublePoint{double X,Y;};
+      double maxErr; //SemiLarghezza della striscia
+      CFilterClipD(void);
+      bool getLine(double X1, double Y1, double X2, double Y2); //si passano le coordinate
+                //di due punti per cui passa la retta, e si definisce in tal modo la retta di
+                //riferimento. Se i due punti passati erano coincidenti, la retta non  definibile
+                //e la funzione ritorna false;
+      void getRect(int X0, int Y0, int X1, int Y1);
+      int giveRectIntersect(DoublePoint & I1, DoublePoint &I2);
+      bool isRedundant(double X, double Y); //ritorna true se il punto passato non  all'interno della striscia
+      bool isInRect(double X, double Y); //ritorna true se il punto passato  all'interno del rettangolo
+    private:
+      struct DoubleRect{double Top, Bottom, Left, Right;};
+      double X1,Y1,X2,Y2;
+      DoubleRect R; //Rettangolo del grafico su cui effettuare il taglio delle curve
+      DoublePoint Vector;  //vettore che mi dà direz. e verso della StraightLine
+      bool lineDefined;
+      double A, B, C,  //coefficienti dell'equazione della retta e sqrt(A^2+B^2)
+             aux, lastX, lastY;
+      double inline giveX(double Y), giveY(double X);
+      bool giveX(double Y, double &X), giveY(double X, double &Y);
+  };
+/*$$$***********************************************************************/
+/*************Fine definizione della classe FilterClipD**********************/
+/***************************************************************************/
+
+
+
+
+
+
 
 // *************  2) VARIABILI PRIVATE IMPLEMENTATE COME PROPERTY
   int activeDataCurs; //Il cursore dati attivo di massimo numero (se  2 o 3  attivo anche il cursore 1!)
@@ -288,6 +355,7 @@ private:
   SFloatRect2 dispRect; //Rettangolo di visualizzazione attuale
   QString baseFontFamily;
   CFilterClip FC;
+  CFilterClipD FCd;
   struct {float x,y,ry;} ticInterv,
          ratio; //rapporto fra ampiezza asse in pixel e ampiezza numerica della grandezza visualizzata nel rettangolo del grafico
   struct SUserUnits {QString x, y, ry;} userUnits;
@@ -334,6 +402,7 @@ private:
   void designPlot(void);
   void drawBars(void);
   int drawCurves(bool NoCurves);
+  int drawCurvesD(bool NoCurves);
   void drawCurvesQtF(bool NoCurves);
   void drawCurvesQtI(bool NoCurves);
   void drawCurvesPoly(bool NoCurves);
@@ -358,11 +427,11 @@ private:
   //orizzontale del cursore e del file e del grafico specificati attraverso i primi due
   //parametri passati:
   void markSingle(int iFile, int iVSFile, int iPlot, int iTotPlot, bool store);
-  static float minus(struct SDigits d, unsigned icifra, unsigned ifrac);
-  static float plus(struct SDigits d, unsigned icifra, unsigned ifrac);
+  static float minus(struct SDigits d, int icifra, int ifrac);
+  static float plus(struct SDigits d, int icifra, int ifrac);
   void resizeEvent(QResizeEvent *) override;
   void selectUnzoom(QMouseEvent *event);
-  QString setFullDispRect();
+  SFloatRect2 setFullDispRect();
   int scaleAxis(SAxis &Axis, float minVal, float maxVal, int minTic, unsigned include0, bool exactMatch);
   int scaleXY(SFloatRect2 r, const bool justTic);
   void setRect(QRect r);
