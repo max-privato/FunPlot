@@ -6,7 +6,6 @@
 #include <QVector>
 
 // *** Valori limite ad allocazione statica:
-#define MAXFILES 8  //numero massimo di files (le linee inizialmente visualizzate sono invece 3)
 #define MAXSHEETS 4
 #define MAXVARS 15  //Numero massimo di variabili nella lista (escluso il tempo)
 #define MAXFUNPLOTS MAXVARS  //Numero massimo di funzioni di variabili plottabili simultaneamente

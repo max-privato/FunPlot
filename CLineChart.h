@@ -1,3 +1,22 @@
+/*
+ * This file is part of MC's PlotXY.
+ *
+ * PlotXY was created during 1998, continuously maintained and upgraded up to current year
+ * by Massimo Ceraolo from the University of Pisa.
+ *
+ * The Linux distribution has been built using Ceraolo's source code in 2018 by Perry
+ * Clements from Canada.
+ *
+ * This program is free software: you can redistribute it under the terms of GNU Public
+ * License version 3 as published by the Free Software Foundation.
+ *
+ * PLOTXY AND ALL THE RELATED MATERIAL INCLUDED IN THE DISTRIBUTION PLOTXY.ZIP FILE OR
+ * AVAILABLE FROM GITHUB IS SUPPLIED "AS-IS" THE AUTHOR OFFERS NO WARRANTY OF ITS FITNESS
+ * FOR ANY PURPOSE WHATSOEVER, AND ACCEPTS NO LIABILITY WHATSOEVER FOR ANY LOSS OR
+ * DAMAGE INCURRED BY ITS USE.
+ *
+ */
+
 #ifndef CLINECHART_H
 #define CLINECHART_H
 #include <QRect>
@@ -10,10 +29,10 @@
 #include <QTimer>
 #include <QToolTip>
 
-#define MAXFILES 8  //numero massimo di files (le linee inizialmente visualizzate sono invece 3)
+#define MAXFILES 9  //numero massimo di files (le linee inizialmente visualizzate sono invece 3)
 #define MAXVARS 15  //Numero massimo di variabili nella lista (escluso il tempo)
 
-#include "SuppFunctions.h"
+//#include "SuppFunctions.h"  //commentata in quanto sia le funzioni di allocazione delle matrici, che la smartSetNum sono state definite come funzioni statiche all'interno dellala classe
 #define RATIOLIM 0.799f
 #define MAXAUTOMARKS 4
 #define MAXMANUMARKS 8
@@ -41,10 +60,12 @@ struct SCurveParam {
     bool isMonotonic; //Nel caso essa sia true, sarà possibile effettuare le zoomate in maniera molto più veloce in quanto si sfrutta il fatto di sapere che X è monotona crescente.
 //    int fileIndex; //numero del file in base 0
     int idx; //numero della variabile all'interno del file considerato: indice di mySO[ifile]->y[num];'
+    int timeConversion; //vale 0 se non faccio conversioni, 1: s->h, 2: s->h
     QString name; //il nome della variabile; per le funzioni f1, f2, ecc.
     QString midName;  //per le funzioni la loro stringa, tipo f1v1+2*v3
     QString fullName; // per le funzioni il nome completo, tipo voltage1-voltage2/2.0
     QColor color; // il colore (anche se non definito per la var. x sarà sempre black)
+    Qt::PenStyle style;
     bool rightScale; //valore non definito per la variabile x
     QString unitS;
 };
@@ -110,7 +131,6 @@ private:
         float Value, roundValue;
         char Sign;
     };
-    struct FloatPoint{float X,Y;};
     struct SAxis{
       /* Tutti i dati sono relativi a scale lineari eccetto eMin ed eMax*/
       bool
@@ -129,15 +149,19 @@ private:
                  //se è 1, sono riuscito a trovare due estremi distinti ma non "rotondi",
                  //è 2 se il risultato è OK, cioè se ho eseguito la scalatura in modo
                 //"exactMatch", oppure ho trovato i due numeri rotondi.
-          width, //ampiezza dell'asse in pixel: X1-X0, o Y1-Y0
+          widthPix, //ampiezza dell'asse in pixel: X1-X0, o Y1-Y0
                  //(in realtà sull'asse X c'è una piccola correzione nel solo caso delle bar).
           maxTextWidth, //massima ampiezza in pixel dei testi sugli assi, comprendendo
                     // i numeri sulle tacche e le eventuali label
-          ticDecimals, //Numero di decimali sulle tacche
+          ticPixWidth, //ampiezza delle tacche in pixel
+          ticDecimals, //Numero di decimali sulle label numeriche
           scaleExponent; //la scala si intende moltiplicata per 10^ScaleExponent
       float scaleFactor, //Fattore di scala per evitare numeri troppo grossi o piccoli
                           //sulle tacche degli assi  = 10^ScaleExponent
-            ticInterval;	//distanza numerica fra le tacche
+            ticInterval,    //distanza numerica fra le tacche (unità della grandezza)
+            ticIntervalPix,
+            pixPerValue; //rapporto fra widthPix e scaleFactor*(scaleMax-scaleMin) se in scala lineare
+                         //rapporto fra widthPix e scaleFactor*(eMax-eMin) se in scala log
       float minF,  //=minVal*scaleFactor
             maxF;  //=maxVal*scaleFactor
       float minVal, // minimo effettivo dell'asse senza arrotondamento
@@ -345,7 +369,7 @@ class CFilterClipD{
                **cursorYValBkp; //Valori di salvataggio del cursore numerico
   ELegendFontSizeType legendFontSizeType;
 //  SCurveParam *curveParam;
-  QList <SCurveParam> lCurveParam;
+  QList <SCurveParam> curveParamLst;
   QVector <int>   nPlots; //Vettore dei numeri di grafici per i vari files
 
   SXVarParam xVarParam;
@@ -356,8 +380,6 @@ class CFilterClipD{
   QString baseFontFamily;
   CFilterClip FC;
   CFilterClipD FCd;
-  struct {float x,y,ry;} ticInterv,
-         ratio; //rapporto fra ampiezza asse in pixel e ampiezza numerica della grandezza visualizzata nel rettangolo del grafico
   struct SUserUnits {QString x, y, ry;} userUnits;
   QCursor myCursor;
   QFont numFont, baseFont, expFont, lgdFont; //Loro utilizzo in Developer.odtQuesti tre font vengono definiti solo nel design plot. Essi sono funzione della dimensione del grafico. se é fontSizeType==fsFixed, allora il baseFont assumerà come pixelSize fixedFontPx
@@ -373,7 +395,6 @@ class CFilterClipD{
   QPen framePen, gridPen, plotPen, ticPen, txtPen;
   QPointF stZoomRectPos, endZoomRectPos;
   QPointF markPositions[MAXVARS]; //Posizioni dei marcatori sui nomi delle variabili
-  QPoint ticWidth;
 /* In debugRect copierò sempre dataCurs in quanto a seguito di un bug non chiarito capita che all'evento paint vengano spesso inviati dei dataCurs con valore x  errato!*/
   QRect debugCurs;
   QRect dataCurs, dataCurs2;
@@ -408,8 +429,8 @@ class CFilterClipD{
   void drawCurvesPoly(bool NoCurves);
   void drawMark(float X, float Y, int mark, bool markName);
   void drawSwarm(void);
-  int drawText2(int X, int Y, EadjustType hAdjust, EadjustType vAdjust, QString msg1, QString msg2, bool addBrackets, bool Virtual);
-  int smartDrawUnit(QPainter * myPainter, QFont baseFont, int X, int Y, EadjustType hAdjust, EadjustType vAdjust, QString text,  bool addBrackets, bool Virtual );
+  int writeText2(QPainter *myPainter, int X, int Y, EadjustType hAdjust, EadjustType vAdjust, QString msg1, QString msg2, bool addBrackets, bool Virtual);
+  int smartWriteUnit(QPainter * myPainter, QFont baseFont, int X, int Y, EadjustType hAdjust, EadjustType vAdjust, QString text,  bool addBrackets, bool Virtual );
   bool fillPixelToIndex(int **pixelToIndexDX);
   bool fillPixelToIndexLog(int **pixelToIndexDX);
   //Funzione che dà i valori delle X e delle Y in corrispondenza di una data posizione
@@ -433,7 +454,7 @@ class CFilterClipD{
   void selectUnzoom(QMouseEvent *event);
   SFloatRect2 setFullDispRect();
   int scaleAxis(SAxis &Axis, float minVal, float maxVal, int minTic, unsigned include0, bool exactMatch);
-  int scaleXY(SFloatRect2 r, const bool justTic);
+  int scaleXY(SFloatRect2 &dispRect, const bool justTic);
   void setRect(QRect r);
   QTimer * tooltipTimer;
   int writeAxisLabel(int X, int Y, SAxis &Axis, bool Virtual);
@@ -481,6 +502,7 @@ int drawTimeUs; //drawing time in microseconds
 int fixedFontPx; //default pixel size of text font, when "fsFixed" is selected by the user
 int pointsDrawn; //Numero di punti utilizzati per il tracciamento
 int tooltipMargin; //distanza  in pixel dal punto per visualizzare il tootip dei valori
+bool showPlotCopiedDlg; //mostra il dialog "plot copied as an image into the system clipboard"
 
 // *************  6) FUNZIONI PUBBLICHE (in ordine alfabetico)
   CLineChart(QWidget * parent);
@@ -522,6 +544,8 @@ int tooltipMargin; //distanza  in pixel dal punto per visualizzare il tootip dei
 
   // *************  8)   SIGNALS
   signals:
+  void chartClickedOn(void);;
+  void chartResizeStopped(void);
   void valuesChanged(SXYValues values, bool hDifference, bool vDifference);
 
   // *************  9)   PRIVATE SLOTS

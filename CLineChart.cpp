@@ -1,3 +1,22 @@
+/*
+ * This file is part of MC's PlotXY.
+ *
+ * PlotXY was created during 1998, continuously maintained and upgraded up to current year
+ * by Massimo Ceraolo from the University of Pisa.
+ *
+ * The Linux distribution has been built using Ceraolo's source code in 2018 by Perry
+ * Clements from Canada.
+ *
+ * This program is free software: you can redistribute it under the terms of GNU Public
+ * License version 3 as published by the Free Software Foundation.
+ *
+ * PLOTXY AND ALL THE RELATED MATERIAL INCLUDED IN THE DISTRIBUTION PLOTXY.ZIP FILE OR
+ * AVAILABLE FROM GITHUB IS SUPPLIED "AS-IS" THE AUTHOR OFFERS NO WARRANTY OF ITS FITNESS
+ * FOR ANY PURPOSE WHATSOEVER, AND ACCEPTS NO LIABILITY WHATSOEVER FOR ANY LOSS OR
+ * DAMAGE INCURRED BY ITS USE.
+ *
+ */
+
 #include <QtGui>
 #include <QApplication>
 #include <QFontMetrics>
@@ -17,6 +36,116 @@
 #define NearIntD(x) (int(x+0.5))
 
 
+
+static QString smartSetNum(float num, int prec){
+    /*  Funzione PURA che scrive su stringa i numeri con un numero prefissato di cifre
+     * significative nella versione più compatta possibile, ma senza perdita di informazioni.
+     *  E' stato necessario implementarla
+     * anche se esiste la funzione di stringa setNum, in quanto quest'ultima taglia gli zeri
+     * finali. Pertanto, ad es. 0.1200  (o 0.12) con 4 cifre significative in setNum viene
+     * 0.12, con perdita di informazione sugli ultimi due digit, mentre nella presente
+     * routine, più correttamente, viene 0.1200
+     *
+    */
+    QChar sep;
+    QString out, prepS;
+    //Prima di tutto scrivo il numero nella stringa da ritornare in formato esponenziale, e successivamente verifico se esiste la possibilità di una scrittura più compatta che metto nuovamente in out. Se non esisterà questa possibilità, la stringa di uscita sarà out così come derivante dalla seguente riga:
+    out.setNum(num,'e',prec-1);
+    //Prima di tutto devo capire quante cifre ho dopo l'esponente, se 1 o 2 I due casi, testati rispettivamente con Qt 5.2 (Mac-air) e Qt 5.7 (Fisso Home) sono e+## (qualunque sia l'esponente e formato differenziato a seconda se sia sufficiente un esponente a un dicit (nel qual caso ho E+#) o servano due digit nel qual caso ho E+##). In sostanza mi basta calcolare expSize e vedere sse è di 3 caratteri (E+#) o di 4 (E+##)
+    int expSize=out.size()-out.indexOf('e');
+    //Se l'esponente è 0 intanto mi riparmio le ultime 4 cifre:
+    int exp;
+    exp=out.right(expSize-1).toInt();
+    //Se l'esponente è zero lo tolgo e via:
+    if(exp==0){
+      out.chop(expSize);
+      return out;
+    }
+
+    //nelle seguenti analisi devo maneggiare il separatore decimale sep, che può essere punto o virgola. Faccio un codice che sia robusto in tal senso:
+    if(out.contains('.'))
+        sep='.';
+    else
+        sep=',';
+    // la seguente prepS è la stringa da "prependere" se il numero è in modulo minore di 1 ovviamente nel caso in cui sia possibile rinunciare alla notazione esponenziale
+    prepS="0"+QString(sep);
+    //Il seguente loop è valido solo per esponenti positivi, e compatibili con il livello di precisione richiesto. Se il numero è troppo grande per essere rappresentato in utte le sue cifre in formato floating point non verrà processato e resterà attiva la notazione esponenziale precedentemente usata per la scrittura in out
+    for (int i=1; i<prec; i++)
+      if(exp==i &&prec>i){
+        out.remove(sep);
+        out.chop(expSize);
+        //Adesso inserisco il puntino nella posizione giusta. Però poi lo ritolgo se diviene l'ultimo carattere.
+        if(out[0]=='-')
+          out.insert(i+1+1,sep);
+        else
+          out.insert(i+1,sep);
+        if(out[out.length()-1]=='.')
+            out.chop(1);
+        break;
+        if(i+1!=out.length())
+          out.insert(i+1+(int)(out[0]=='-'),sep);
+        break;
+       }
+// Rimangono da trattare solo i casi di esponente negativo. Vengono considerati solo esponenti fino a -2 in quanto al più voglio avere due zeri dopo la virgola. Oltre questo è più leggibile la notazione esponenziale:
+    if(exp==-1 &&prec>1){
+      out.remove(sep);
+      if(out[0]=='-')
+         out.insert(1,prepS);
+      else
+         out.insert(0,prepS);
+      out.chop(expSize);
+     }
+    if(exp==-2 &&prec>2){
+      if(out[0]=='-'){
+        out.insert(1,"0");
+        out.remove(sep);
+        out.insert(1,prepS);
+      }else{
+        out.insert(0,"0");
+        out.remove(sep);
+        out.insert(0,prepS);
+      }
+      out.chop(expSize);
+     }
+    if(exp==-3 &&prec>3){
+      if(out[0]=='-'){
+        out.insert(1,"00");
+        out.remove(sep);
+        out.insert(1,prepS);
+      }else{
+        out.insert(0,"00");
+        out.remove(sep);
+        out.insert(0,prepS);
+      }
+      out.chop(expSize);
+     }
+    //Il seguente ulteriore caso comporta numeri in floatin point particolarmente lunghi, più lunghi del caso di forma esponenziale ed esponente a 3 digit. Pertanto ha senso mantenerlo solo se l'esponente è a 4 digit:
+    if(expSize==4)
+      if(exp==-4 &&prec>4){
+        if(out[0]=='-'){
+          out.insert(1,"000");
+          out.remove(sep);
+          out.insert(1,prepS);
+        }else{
+          out.insert(0,"000");
+          out.remove(sep);
+          out.insert(0,prepS);
+        }
+        out.chop(expSize);
+       }
+
+    return out;
+}
+
+
+
+
+
+
+
+
+
+
 static bool isEven(int i)  {
     /*Returns true if the inputted integer is even or zero
      * */
@@ -31,12 +160,12 @@ static bool isEven(int i)  {
   }
 
 
-CLineChart::CLineChart(QWidget * parent):QLabel(parent,nullptr)
+CLineChart::CLineChart(QWidget * parent):QLabel(parent)
 {
 /*
 La reimplementazione della funzione virtual resizeEvent in questo file contiene la chiamata a plot().
 */
-    myTimer = new QTimer(this);
+     myTimer = new QTimer(this);
     tooltipTimer = new QTimer(this);
     connect(tooltipTimer, SIGNAL(timeout()), this, SLOT(checkTooltip()));
     myTimer->setSingleShot(true);
@@ -74,6 +203,7 @@ La reimplementazione della funzione virtual resizeEvent in questo file contiene 
     plotDone=false;
     printing=false;
     rectTTVisible=false;
+    showPlotCopiedDlg=true;
     strongFilter=false;
     twinScale=false;
     useBrackets=true;
@@ -100,11 +230,11 @@ La reimplementazione della funzione virtual resizeEvent in questo file contiene 
     symbFontName="Symbol";
     plotType=ptLine;
     xAxis.type=atX;
-    xAxis.scaleType=stLin;;
+    xAxis.scaleType=stLin;
     xVarParam.unitS="";
     xAxis.addZeroLine=false;
     yAxis.type=atYL;
-    yAxis.scaleType=stLin;;
+    yAxis.scaleType=stLin;
     yAxis.addZeroLine=false;
     ryAxis.type=atYR;
     ryAxis.scaleType=stLin;
@@ -144,7 +274,7 @@ La reimplementazione della funzione virtual resizeEvent in questo file contiene 
     //Nelle seguenti righe faccio predisposizioni affinché nella routine Plot si possa prima deallocare (rispettivamente con delete, DeleteIMatrix e DeleteFMatrix) gli array e poi riallocarli con le dimensioni giuste.
     cursorXValues=nullptr;
     cursorXValBkp=nullptr;
-    lCurveParam.clear();;
+    curveParamLst.clear();
     startIndex=nullptr;
     stopIndex=nullptr;
     pixelToIndexDX=CLineChart::CreateIMatrix(1,1);
@@ -349,6 +479,8 @@ int CLineChart::computeDecimals(float scaleMin_, float ticInterval, bool halfTic
 
 int CLineChart::computeTic(float minRoundValue_, float maxRoundValue_, int minTic){
 /*   Calcolo del numero di tacche da mettere sopra un asse.
+ * FUNZIONE PURA: a pari input la funzione ritorna il medesimo output. Non scrive in
+ * nessuna variabile diversa da quelle internamente generate.
   Se MinTic>=0, il risultato è sempre fra MinTic e MinTic+3.
   Se MinTic<0. per convenzione il risultato è 0.
   Esemplifico la logica operativa nel caso più importante, ovvero con MinTic=4:
@@ -402,6 +534,7 @@ Se minTic è diverso da 4, ad es. è 3, il numero di tacche consentito andrà da
     goto Return;
   }
 
+  //  sprintf(buffer,"%+10.3e",maxRoundValue_-minRoundValue_);
   sprintf(buffer,"%+10.3e",double(maxRoundValue_-minRoundValue_));
 
 // static float fff=-1.0;
@@ -414,7 +547,10 @@ Se minTic è diverso da 4, ad es. è 3, il numero di tacche consentito andrà da
   MinDecimals=5;
   //Calcolo i numeri di decimali e ne individuo il numero minimo:
   for(i=0; i<4; i ++){
-    sprintf(deltaTicStr[i],"%7.4f",double(idelta/(i+minTic+1)));
+
+    //    sprintf(deltaTicStr[i],"%7.4f",(float)idelta/(i+minTic+1));
+    sprintf(deltaTicStr[i],"%7.4f",double(idelta)/double(i+minTic+1));
+
     j=7;
     if(allowsZero(minRoundValue_,maxRoundValue_,i+minTic))
       SAllowsZero<<i;
@@ -566,8 +702,9 @@ Oltre che al momento della costruzione di CLineChart, e ad ogni suo ridimensiona
 */
 
   int numWidth,maxTic;
-  ticWidth.setX(qMax(4,int(0.015f*plotRect.height())));
-  ticWidth.setY(ticWidth.x());
+  xAxis.ticPixWidth=qMax(4,int(0.015f*plotRect.height()));
+  yAxis.ticPixWidth=xAxis.ticPixWidth;
+  ryAxis.ticPixWidth=xAxis.ticPixWidth;
   svgOffset= qMax(6,plotRect.width()/100);
 
   //Stabilisco i tre font del grafico (baseFont, expFont, legendFont) ed attribuisco il baseFont al myPainter
@@ -575,9 +712,9 @@ Oltre che al momento della costruzione di CLineChart, e ad ogni suo ridimensiona
   QScreen *screen=QGuiApplication::primaryScreen();
   myDPI=int(screen->logicalDotsPerInch());
   if(myDPI>100)
-    generalFontPx=qMax(qMin(int(0.016f*(plotRect.height()+plotRect.width())),28),13);
+    generalFontPx=qMax(qMin(int(0.014f*(plotRect.height()+plotRect.width())),28),12);
   else
-     generalFontPx=qMax(qMin(int(0.014f*(plotRect.height()+plotRect.width())),24),10);
+     generalFontPx=qMax(qMin(int(0.012f*(plotRect.height()+plotRect.width())),20),10);
   onePixDPI=myDPI/float(96);
   int fontPxSize=generalFontPx;
   if(fontSizeType==fsFixed)
@@ -590,14 +727,14 @@ Oltre che al momento della costruzione di CLineChart, e ad ogni suo ridimensiona
    lgdFont.setPixelSize(fontPxSize);
   }
   QFontMetrics fm(baseFont);
-  float fSmallHSpace=0.6f*fm.width("a");
+  float fSmallHSpace=0.6f*fm.horizontalAdvance("a");
   smallHSpace=int(fSmallHSpace);
   if(fSmallHSpace<=2.0f)
     markHalfWidth=1.5f*fSmallHSpace;
   else
     markHalfWidth=qMax(1.5f*2.0f,1.00f*fSmallHSpace);
 
-  numWidth=fm.width("+0.000");
+  numWidth=fm.horizontalAdvance("+0.000");
   textHeight=fm.height();
   maxTic=int(plotRect.height()/(1.2f*textHeight)/2.f)-1;
   minYTic=qMin(4,maxTic-3);
@@ -615,7 +752,6 @@ Pertanto l'indice di file è sempre 0 e l'indice della variabile è sempre 0.
           yZero; //Coordinata pixel Y della retta y=0 (scale lineari) e logy=0 (scale log)
   float minXStep, fAux;
   QBrush redBrush, grayBrush;
-  QString XText;
 
   plotPen.setColor(Qt::black);
   myPainter->setPen(plotPen);
@@ -625,21 +761,21 @@ Pertanto l'indice di file è sempre 0 e l'indice della variabile è sempre 0.
   grayBrush.setStyle(Qt::SolidPattern);
   myPainter->setBrush(redBrush);
   if(yAxis.scaleType==stLin)
-    yZero=Y1+int(yAxis.minF*ratio.y);
+    yZero=Y1+int(yAxis.minF*yAxis.pixPerValue );
   else
-    yZero=Y1+int(yAxis.eMin *ratio.y);
+    yZero=Y1+int(yAxis.eMin *yAxis.pixPerValue );
 
   if(xAxis.scaleType==stLin){
-     xStartIndex[0]=X0+margin + NearInt((px[0][startIndex[0]]-xAxis.minF)*ratio.x);
-     xStopIndex[0] =X0+margin + NearInt((px[0][stopIndex[0]] -xAxis.minF)*ratio.x);
+     xStartIndex[0]=X0+margin + NearInt((px[0][startIndex[0]]-xAxis.minF)*xAxis.pixPerValue );
+     xStopIndex[0] =X0+margin + NearInt((px[0][stopIndex[0]] -xAxis.minF)*xAxis.pixPerValue );
      minXStep=px[0][stopIndex[0]]-px[0][startIndex[0]];
      for(i=startIndex[0]+1; i<=stopIndex[0]; i++)
        if(px[0][i]-px[0][i-1]<minXStep) minXStep=px[0][i]-px[0][i-1];
 //     barWidth=max(2,0.7*(X1-X0)*minXStep/(px[0][stopIndex[0]]-px[0][startIndex[0]]));
      barWidth=qMax(2,int(0.7f*(X1-X0)*minXStep/(px[0][stopIndex[0]]-px[0][startIndex[0]])));
   }else{
-    xStartIndex[0]=X0+margin + NearInt(log10f(px[0][startIndex[0]]-xAxis.eMin)*ratio.x);
-    xStopIndex[0] =X0+margin + NearInt(log10f(px[0][stopIndex[0]] -xAxis.eMin)*ratio.x);
+    xStartIndex[0]=X0+margin + NearInt(log10f(px[0][startIndex[0]]-xAxis.eMin)*xAxis.pixPerValue );
+    xStopIndex[0] =X0+margin + NearInt(log10f(px[0][stopIndex[0]] -xAxis.eMin)*xAxis.pixPerValue );
     minXStep=log10f(px[0][stopIndex[0]]/px[0][startIndex[0]]);
     for(i=startIndex[0]+1; i<=stopIndex[0]; i++){
       fAux=log10f(px[0][i]/px[0][i-1]);
@@ -662,9 +798,9 @@ Pertanto l'indice di file è sempre 0 e l'indice della variabile è sempre 0.
   for(i=startIndex[0]; i<=stopIndex[0]; i++){
     myPainter->setBrush(redBrush);
     if(yAxis.scaleType==stLin){
-       barY=int(Y1-(py[0][0][i]-yAxis.minF)*ratio.y);
+       barY=int(Y1-(py[0][0][i]-yAxis.minF)*yAxis.pixPerValue );
     }else{
-       barY=int(Y1-log10f(py[0][0][i]/yAxis.scaleMin)*ratio.y);
+       barY=int(Y1-log10f(py[0][0][i]/yAxis.scaleMin)*yAxis.pixPerValue );
     }
     if(xAxis.scaleType==stLin){
        fAux=px[0][i] - xAxis.minF;
@@ -672,7 +808,7 @@ Pertanto l'indice di file è sempre 0 e l'indice della variabile è sempre 0.
       fAux=log10f(px[0][i]) - xAxis.eMin;
     }
     if(fAux<0)fAux=0;
-    barCenter=X0+margin + NearInt(fAux*ratio.x);
+    barCenter=X0+margin + NearInt(fAux*xAxis.pixPerValue );
     barLeft=int(barCenter-barWidth/2.f+0.5f);
     barLeft=qMax(X0,barLeft);
     barRight=barLeft+barWidth-1;
@@ -730,8 +866,11 @@ Pertanto l'indice di file è sempre 0 e l'indice della variabile è sempre 0.
 
 
 int CLineChart::drawCurves(bool noCurves){
- /* Funzione per il tracciamento delle curve su grafici di linea.  Contiene al suo interno un algoritmo per l'eliminazione automatica dei punti visualmente ridondanti e del taglio delle curve all'esterno del rettangolo di visualizzazione.
-Essendo stata realizzata con grande cura ed essendo intrinsecamente complessa è sconsigliato modificarla se non strettamente necessario.
+ /* Funzione per il tracciamento delle curve su grafici di linea.  Contiene al suo interno
+  *  un algoritmo per l'eliminazione automatica dei punti visualmente ridondanti e del
+  *  taglio delle curve all'esterno del rettangolo di visualizzazione.
+  *  Essendo stata realizzata con grande cura ed essendo intrinsecamente complessa è
+  *  sconsigliato modificarla se non strettamente necessario.
 */
   int iTotPlot=-1;
   int pointsDrawn0;
@@ -747,13 +886,13 @@ Essendo stata realizzata con grande cura ed essendo intrinsecamente complessa è
   pointsDrawn=0;
   if(xAxis.scaleType==stLin){
     for(int i=0; i<nFiles; i++){
-      xStartIndex[i]=X0+NearInt(ratio.x * (px[i][startIndex[i]] - sxmin));
-      xStopIndex[i] =X0+NearInt(ratio.x * (px[i][stopIndex[i]] - sxmin));
+      xStartIndex[i]=X0+NearInt(xAxis.pixPerValue  * (px[i][startIndex[i]] - sxmin));
+      xStopIndex[i] =X0+NearInt(xAxis.pixPerValue  * (px[i][stopIndex[i]] - sxmin));
     }
   }else{
     for(int i=0; i<nFiles; i++){
-      xStartIndex[i]=X0+ NearInt((log10f(px[i][startIndex[i]])-xAxis.eMin)*ratio.x);
-      xStopIndex[i] =X0+ NearInt((log10f(px[i][stopIndex[i]]) -xAxis.eMin)*ratio.x);
+      xStartIndex[i]=X0+ NearInt((log10f(px[i][startIndex[i]])-xAxis.eMin)*xAxis.pixPerValue );
+      xStopIndex[i] =X0+ NearInt((log10f(px[i][stopIndex[i]]) -xAxis.eMin)*xAxis.pixPerValue );
     }
   }
   if(noCurves)
@@ -766,21 +905,18 @@ Essendo stata realizzata con grande cura ed essendo intrinsecamente complessa è
       if(blackWhite)
         plotPen.setColor(Qt::black);
       else
-        plotPen.setColor(lCurveParam[iTotPlot].color);
-      if(iPlot>7)
-          plotPen.setStyle(Qt::DashLine);
-      else
-          plotPen.setStyle(Qt::SolidLine);
+        plotPen.setColor(curveParamLst[iTotPlot].color);
+      plotPen.setStyle(curveParamLst[iTotPlot].style);
       myPainter->setPen(plotPen);
       // Calcolo yRatio e symin, valutando se sono relativi alla scala di sinistra o a quella eventuale di destra:
-      if(lCurveParam[iTotPlot].rightScale){
-        yRatio=ratio.ry;
+      if(curveParamLst[iTotPlot].rightScale){
+        yRatio=ryAxis.pixPerValue ;
         if(yAxis.scaleType==stLin)
           symin=ryAxis.minF;
         else
           symin=ryAxis.eMin;
       }else{
-        yRatio=ratio.y;
+        yRatio=yAxis.pixPerValue ;
         if(yAxis.scaleType==stLin)
           symin=yAxis.minF;
         else
@@ -789,13 +925,13 @@ Essendo stata realizzata con grande cura ed essendo intrinsecamente complessa è
       CFilterClip::FloatPoint P1,P2;
       pointsDrawn0=0;
       if(xAxis.scaleType==stLin)
-        x1f=ratio.x * (px[iFile][startIndex[iFile]]-sxmin)+X0;
+        x1f=xAxis.pixPerValue  * (px[iFile][startIndex[iFile]]-sxmin)+X0;
       else
-        x1f=ratio.x * (log10f(px[iFile][startIndex[iFile]])-sxmin)+X0;
+        x1f=xAxis.pixPerValue  * (log10f(px[iFile][startIndex[iFile]])-sxmin)+X0;
       if(yAxis.scaleType==stLin)
-        y1f=yAxis.width-yRatio * (py[iFile][iPlot][startIndex[iFile]]-symin)+Y0;
+        y1f=yAxis.widthPix-yRatio * (py[iFile][iPlot][startIndex[iFile]]-symin)+Y0;
       else
-        y1f=yAxis.width-yRatio * (log10f(py[iFile][iPlot][startIndex[iFile]])-symin)+Y0;
+        y1f=yAxis.widthPix-yRatio * (log10f(py[iFile][iPlot][startIndex[iFile]])-symin)+Y0;
       x1=NearInt(x1f);
       y1=NearInt(y1f);
       if(FC.isInRect(x1,y1))
@@ -807,20 +943,20 @@ Essendo stata realizzata con grande cura ed essendo intrinsecamente complessa è
         //Le seguenti due righe sono state commentate il 3/4/2018 e sostituita con l'if. Si tratta di righe "core", quindi la correzione va accuratamente validata. Sembra però che avessero ben due problemi:
         // 1) usavano entrambe la formula lineare anche in caso di scale logaritmiche
         // 2) la seconda usava startIndex[iFile] invece di startIndexPlus
-//        float xfplus=ratio.x * (px[iFile][startIndexPlus]-sxmin)+X0;
+//        float xfplus=xAxis.pixPerValue  * (px[iFile][startIndexPlus]-sxmin)+X0;
 //        float yfplus=yAxis.width-yRatio * (py[iFile][iPlot][startIndex[iFile]]-symin)+Y0;
 
         float xfplus, yfplus;
-        qDebug()<<"px[iFile][startIndexPlus]: "<<px[iFile][startIndexPlus];
+//        qDebug()<<"px[iFile][startIndexPlus]: "<<px[iFile][startIndexPlus];
         if(xAxis.scaleType==stLin)
-          xfplus=ratio.x * (px[iFile][startIndexPlus]-sxmin)+X0;
+          xfplus=xAxis.pixPerValue  * (px[iFile][startIndexPlus]-sxmin)+X0;
         else
-          xfplus=ratio.x * (log10f(px[iFile][startIndexPlus])-sxmin)+X0;
+          xfplus=xAxis.pixPerValue  * (log10f(px[iFile][startIndexPlus])-sxmin)+X0;
 
         if(yAxis.scaleType==stLin)
-          yfplus=yAxis.width-yRatio * (py[iFile][iPlot][startIndexPlus]-symin)+Y0;
+          yfplus=yAxis.widthPix-yRatio * (py[iFile][iPlot][startIndexPlus]-symin)+Y0;
         else
-          yfplus=yAxis.width-yRatio * (log10f(py[iFile][iPlot][startIndexPlus])-symin)+Y0;
+          yfplus=yAxis.widthPix-yRatio * (log10f(py[iFile][iPlot][startIndexPlus])-symin)+Y0;
 
         int xPlus=NearInt(xfplus);
         int yPlus=NearInt(yfplus);
@@ -828,8 +964,8 @@ Essendo stata realizzata con grande cura ed essendo intrinsecamente complessa è
         if(FC.isInRect(xPlus,yPlus)){
           FC.getLine(x1,y1,xPlus,yPlus);
           FC.giveRectIntersect(I1,I2);
+          path.moveTo(NearInt(I1.X), NearInt(I1.Y));
         }
-        path.moveTo(NearInt(I1.X), NearInt(I1.Y));
       }else{
         path.moveTo(double(x1),double(y1));
       }
@@ -840,20 +976,17 @@ Essendo stata realizzata con grande cura ed essendo intrinsecamente complessa è
       if(secondIndex>stopIndex[iFile])
         return 1;
       if(xAxis.scaleType==stLin)
-        xf=ratio.x * (px[iFile][secondIndex]-sxmin)+X0;
+        xf=xAxis.pixPerValue  * (px[iFile][secondIndex]-sxmin)+X0;
       else
-        xf=ratio.x * (log10f(px[iFile][secondIndex])-sxmin)+X0;
+        xf=xAxis.pixPerValue  * (log10f(px[iFile][secondIndex])-sxmin)+X0;
       if(yAxis.scaleType==stLin)
-        yf=yAxis.width-yRatio * (py[iFile][iPlot][secondIndex]-symin)+Y0;
+        yf=yAxis.widthPix-yRatio * (py[iFile][iPlot][secondIndex]-symin)+Y0;
       else
-        yf=yAxis.width-yRatio * (log10f(py[iFile][iPlot][secondIndex])-symin)+Y0;
+        yf=yAxis.widthPix-yRatio * (log10f(py[iFile][iPlot][secondIndex])-symin)+Y0;
       x=NearInt(xf);
       y=NearInt(yf);
       // Se i due punti coincidono la retta è indeterminata. Però non crea difficoltà al tracciamento in quanto FC gestisce internamente tale situazione.
       FC.getLine(x1,y1,x,y);
-//      bool lineDefined=FC.getLine(x1,y1,x,y);
-//      qDebug()<<"x1: "<<x1<<"  y1: "<<y1<<"  x:"<<x<<"  y: "<<y;
-//      qDebug()<<"lineDefined: "<<lineDefined;
 
       //Grafico fino al penultimo punto, con filtraggio e "Clippaggio". L'ultimo punto
       //lo traccio fuori del loop per essere certo che venga comunque tracciato, anche
@@ -862,13 +995,13 @@ Essendo stata realizzata con grande cura ed essendo intrinsecamente complessa è
 
       for(int iPoint=startIndex[iFile]+1; iPoint<stopIndex[iFile]; iPoint++)	{
         if(xAxis.scaleType==stLin)
-          xf=ratio.x * (px[iFile][iPoint] - sxmin) +X0;
+          xf=xAxis.pixPerValue  * (px[iFile][iPoint] - sxmin) +X0;
         else
-          xf=ratio.x * (log10f(px[iFile][iPoint]) - sxmin) +X0;
+          xf=xAxis.pixPerValue  * (log10f(px[iFile][iPoint]) - sxmin) +X0;
         if(yAxis.scaleType==stLin)
-          yf=yAxis.width-yRatio*(py[iFile][iPlot][iPoint] - symin) +Y0;
+          yf=yAxis.widthPix-yRatio*(py[iFile][iPlot][iPoint] - symin) +Y0;
         else
-          yf=yAxis.width-yRatio*(log10f(py[iFile][iPlot][iPoint]) - symin) +Y0;
+          yf=yAxis.widthPix-yRatio*(log10f(py[iFile][iPlot][iPoint]) - symin) +Y0;
         x=xf+0.5f;
         y=yf+0.5f;
 
@@ -911,16 +1044,16 @@ Essendo stata realizzata con grande cura ed essendo intrinsecamente complessa è
         x1=x;
         y1=y;
       } //Fine ciclo for tracciamento curve
-      qDebug()<<"PointsDrawn"<<pointsDrawn0;
+      // qDebug()<<"PointsDrawn"<<pointsDrawn0;
       //Tracciamento ultimo punto della curva:
       if(xAxis.scaleType==stLin)
-        xf=ratio.x * (px[iFile][stopIndex[iFile]] - sxmin) +X0;
+        xf=xAxis.pixPerValue  * (px[iFile][stopIndex[iFile]] - sxmin) +X0;
       else
-        xf=ratio.x * (log10f(px[iFile][stopIndex[iFile]]) - sxmin) +X0;
+        xf=xAxis.pixPerValue  * (log10f(px[iFile][stopIndex[iFile]]) - sxmin) +X0;
       if(yAxis.scaleType==stLin)
-        yf=yAxis.width-yRatio*(py[iFile][iPlot][stopIndex[iFile]] - symin) +Y0;
+        yf=yAxis.widthPix-yRatio*(py[iFile][iPlot][stopIndex[iFile]] - symin) +Y0;
       else
-        yf=yAxis.width-yRatio*(log10f(py[iFile][iPlot][stopIndex[iFile]]) - symin) +Y0;
+        yf=yAxis.widthPix-yRatio*(log10f(py[iFile][iPlot][stopIndex[iFile]]) - symin) +Y0;
       x=xf+0.5f;
       y=yf+0.5f;
 
@@ -960,13 +1093,16 @@ Per ora pertanto si lascia il codice con queste righe, riducendone al minimo le 
 //      out<<path;
 //      file.close();
       if(makingSVG){
-          myPainter->drawPath(path);
-//          qDebug() << "drawpath operation took" << timer.elapsed() << "milliseconds";
+        myPainter->drawPath(path);
+//        qDebug() << "drawpath operation took" << timer.elapsed() << "milliseconds";
       }else{
-// Qui uso la sintassi che mi è stata suggerita da Samuel Rodal, ma è superflua l'iterazione fa i poligoni, visto che le mie curve sono composte tutte da un unico poligono. Notare l'uso di foreach(), estensione di Qt al C++ (significato accessibile via help).
-          foreach(QPolygonF poly, path.toSubpathPolygons())
-              for(int i=0; i<poly.size()-1; i++)
-                  myPainter->drawLine(poly.at(i),poly.at(i+1));
+// Qui uso la sintassi che mi è stata suggerita da Samuel Rodal, ma è superflua l'iterazione fra i poligoni, visto che le mie curve sono composte tutte da un unico poligono. Notare l'uso di foreach(), estensione di Qt al C++ (significato accessibile via help).
+        int i;
+        qDebug()<<"r-g-b: "<<myPainter->pen().color().red()<< myPainter->pen().color().green()<<myPainter->pen().color().blue();
+        qDebug()<<"width: "<<myPainter->pen().width();
+        foreach(QPolygonF poly, path.toSubpathPolygons())
+          for(i=0; i<poly.size()-1; i++)
+            myPainter->drawLine(poly.at(i),poly.at(i+1));
 //          qDebug() << "foreach operation took" << timer.elapsed() << "milliseconds";
       }
     } //Fine tracciamento varie curve relative ad un medesimo file
@@ -975,8 +1111,11 @@ Per ora pertanto si lascia il codice con queste righe, riducendone al minimo le 
 }
 
 int CLineChart::drawCurvesD(bool noCurves){
- /* Funzione per il tracciamento delle curve su grafici di linea.  Contiene al suo interno un algoritmo per l'eliminazione automatica dei punti visualmente ridondanti e del taglio delle curve all'esterno del rettangolo di visualizzazione.
-Essendo stata realizzata con grande cura ed essendo intrinsecamente complessa è sconsigliato modificarla se non strettamente necessario.
+ /* Funzione per il tracciamento delle curve su grafici di linea.  Contiene al suo interno
+  * un algoritmo per l'eliminazione automatica dei punti visualmente ridondanti e del
+  * taglio delle curve all'esterno del rettangolo di visualizzazione.
+  * Essendo stata realizzata con grande cura ed essendo intrinsecamente complessa è
+  * sconsigliato modificarla se non strettamente necessario.
 */
   int iTotPlot=-1;
   int pointsDrawn0;
@@ -993,13 +1132,13 @@ Essendo stata realizzata con grande cura ed essendo intrinsecamente complessa è
   pointsDrawn=0;
   if(xAxis.scaleType==stLin){
     for(int i=0; i<nFiles; i++){
-      xStartIndex[i]=X0+NearInt(ratio.x * (px[i][startIndex[i]] - sxmin));
-      xStopIndex[i] =X0+NearInt(ratio.x * (px[i][stopIndex[i]] - sxmin));
+      xStartIndex[i]=X0+NearInt(xAxis.pixPerValue  * (px[i][startIndex[i]] - sxmin));
+      xStopIndex[i] =X0+NearInt(xAxis.pixPerValue  * (px[i][stopIndex[i]] - sxmin));
     }
   }else{
     for(int i=0; i<nFiles; i++){
-      xStartIndex[i]=X0+ NearInt((log10f(px[i][startIndex[i]])-xAxis.eMin)*ratio.x);
-      xStopIndex[i] =X0+ NearInt((log10f(px[i][stopIndex[i]]) -xAxis.eMin)*ratio.x);
+      xStartIndex[i]=X0+ NearInt((log10f(px[i][startIndex[i]])-xAxis.eMin)*xAxis.pixPerValue );
+      xStopIndex[i] =X0+ NearInt((log10f(px[i][stopIndex[i]]) -xAxis.eMin)*xAxis.pixPerValue );
     }
   }
   if(noCurves)
@@ -1012,21 +1151,18 @@ Essendo stata realizzata con grande cura ed essendo intrinsecamente complessa è
       if(blackWhite)
         plotPen.setColor(Qt::black);
       else
-        plotPen.setColor(lCurveParam[iTotPlot].color);
-      if(iPlot>7)
-          plotPen.setStyle(Qt::DashLine);
-      else
-          plotPen.setStyle(Qt::SolidLine);
+        plotPen.setColor(curveParamLst[iTotPlot].color);
+      plotPen.setStyle(curveParamLst[iTotPlot].style);
       myPainter->setPen(plotPen);
       // Calcolo yRatio e symin, valutando se sono relativi alla scala di sinistra o a quella eventuale di destra:
-      if(lCurveParam[iTotPlot].rightScale){
-        yRatio=ratio.ry;
+      if(curveParamLst[iTotPlot].rightScale){
+        yRatio=ryAxis.pixPerValue ;
         if(yAxis.scaleType==stLin)
           symin=ryAxis.minF;
         else
           symin=ryAxis.eMin;
       }else{
-        yRatio=ratio.y;
+        yRatio=yAxis.pixPerValue ;
         if(yAxis.scaleType==stLin)
           symin=yAxis.minF;
         else
@@ -1035,13 +1171,13 @@ Essendo stata realizzata con grande cura ed essendo intrinsecamente complessa è
       CFilterClipD::DoublePoint P1,P2;
       pointsDrawn0=0;
       if(xAxis.scaleType==stLin)
-        x1f=double(ratio.x * (px[iFile][startIndex[iFile]]-sxmin)+X0);
+        x1f=double(xAxis.pixPerValue  * (px[iFile][startIndex[iFile]]-sxmin)+X0);
       else
-        x1f=double(ratio.x * (log10f(px[iFile][startIndex[iFile]])-sxmin)+X0);
+        x1f=double(xAxis.pixPerValue  * (log10f(px[iFile][startIndex[iFile]])-sxmin)+X0);
       if(yAxis.scaleType==stLin)
-        y1f=double(yAxis.width-yRatio * (py[iFile][iPlot][startIndex[iFile]]-symin)+Y0);
+        y1f=double(yAxis.widthPix-yRatio * (py[iFile][iPlot][startIndex[iFile]]-symin)+Y0);
       else
-        y1f=double(yAxis.width-yRatio * (log10f(py[iFile][iPlot][startIndex[iFile]])-symin)+Y0);
+        y1f=double(yAxis.widthPix-yRatio * (log10f(py[iFile][iPlot][startIndex[iFile]])-symin)+Y0);
       x1=NearIntD(x1f);
       y1=NearIntD(y1f);
       if(FCd.isInRect(x1,y1))
@@ -1053,20 +1189,20 @@ Essendo stata realizzata con grande cura ed essendo intrinsecamente complessa è
         //Le seguenti due righe sono state commentate il 3/4/2018 e sostituita con l'if. Si tratta di righe "core", quindi la correzione va accuratamente validata. Sembra però che avessero ben due problemi:
         // 1) usavano entrambe la formula lineare anche in caso di scale logaritmiche
         // 2) la seconda usava startIndex[iFile] invece di startIndexPlus
-//        float xfplus=ratio.x * (px[iFile][startIndexPlus]-sxmin)+X0;
+//        float xfplus=xAxis.pixPerValue  * (px[iFile][startIndexPlus]-sxmin)+X0;
 //        float yfplus=yAxis.width-yRatio * (py[iFile][iPlot][startIndex[iFile]]-symin)+Y0;
 
         float xfplus, yfplus;
         qDebug()<<"px[iFile][startIndexPlus]: "<<px[iFile][startIndexPlus];
         if(xAxis.scaleType==stLin)
-          xfplus=ratio.x * (px[iFile][startIndexPlus]-sxmin)+X0;
+          xfplus=xAxis.pixPerValue  * (px[iFile][startIndexPlus]-sxmin)+X0;
         else
-          xfplus=ratio.x * (log10f(px[iFile][startIndexPlus])-sxmin)+X0;
+          xfplus=xAxis.pixPerValue  * (log10f(px[iFile][startIndexPlus])-sxmin)+X0;
 
         if(yAxis.scaleType==stLin)
-          yfplus=yAxis.width-yRatio * (py[iFile][iPlot][startIndexPlus]-symin)+Y0;
+          yfplus=yAxis.widthPix-yRatio * (py[iFile][iPlot][startIndexPlus]-symin)+Y0;
         else
-          yfplus=yAxis.width-yRatio * (log10f(py[iFile][iPlot][startIndexPlus])-symin)+Y0;
+          yfplus=yAxis.widthPix-yRatio * (log10f(py[iFile][iPlot][startIndexPlus])-symin)+Y0;
 
         int xPlus=NearInt(xfplus);
         int yPlus=NearInt(yfplus);
@@ -1074,8 +1210,8 @@ Essendo stata realizzata con grande cura ed essendo intrinsecamente complessa è
         if(FCd.isInRect(xPlus,yPlus)){
           FCd.getLine(x1,y1,xPlus,yPlus);
           FCd.giveRectIntersect(I1,I2);
+          path.moveTo(NearIntD(I1.X), NearIntD(I1.Y));
         }
-        path.moveTo(NearIntD(I1.X), NearIntD(I1.Y));
       }else{
         path.moveTo(x1,y1);
       }
@@ -1086,13 +1222,13 @@ Essendo stata realizzata con grande cura ed essendo intrinsecamente complessa è
       if(secondIndex>stopIndex[iFile])
         return 1;
       if(xAxis.scaleType==stLin)
-        xf=double(ratio.x * (px[iFile][secondIndex]-sxmin)+X0);
+        xf=double(xAxis.pixPerValue  * (px[iFile][secondIndex]-sxmin)+X0);
       else
-        xf=double(ratio.x * (log10f(px[iFile][secondIndex])-sxmin)+X0);
+        xf=double(xAxis.pixPerValue  * (log10f(px[iFile][secondIndex])-sxmin)+X0);
       if(yAxis.scaleType==stLin)
-        yf=double(yAxis.width-yRatio * (py[iFile][iPlot][secondIndex]-symin)+Y0);
+        yf=double(yAxis.widthPix-yRatio * (py[iFile][iPlot][secondIndex]-symin)+Y0);
       else
-        yf=double(yAxis.width-yRatio * (log10f(py[iFile][iPlot][secondIndex])-symin)+Y0);
+        yf=double(yAxis.widthPix-yRatio * (log10f(py[iFile][iPlot][secondIndex])-symin)+Y0);
       x=NearIntD(xf);
       y=NearIntD(yf);
       // Se i due punti coincidono la retta è indeterminata. Però non crea difficoltà al tracciamento in quanto FCd gestisce internamente tale situazione.
@@ -1108,13 +1244,13 @@ Essendo stata realizzata con grande cura ed essendo intrinsecamente complessa è
 
       for(int iPoint=startIndex[iFile]+1; iPoint<stopIndex[iFile]; iPoint++)	{
         if(xAxis.scaleType==stLin)
-          xf=double(ratio.x * (px[iFile][iPoint] - sxmin) +X0);
+          xf=double(xAxis.pixPerValue  * (px[iFile][iPoint] - sxmin) +X0);
         else
-          xf=double(ratio.x * (log10f(px[iFile][iPoint]) - sxmin) +X0);
+          xf=double(xAxis.pixPerValue  * (log10f(px[iFile][iPoint]) - sxmin) +X0);
         if(yAxis.scaleType==stLin)
-          yf=double(yAxis.width-yRatio*(py[iFile][iPlot][iPoint] - symin) +Y0);
+          yf=double(yAxis.widthPix-yRatio*(py[iFile][iPlot][iPoint] - symin) +Y0);
         else
-          yf=double(yAxis.width-yRatio*(log10f(py[iFile][iPlot][iPoint]) - symin) +Y0);
+          yf=double(yAxis.widthPix-yRatio*(log10f(py[iFile][iPlot][iPoint]) - symin) +Y0);
         x=xf+0.5;
         y=yf+0.5;
 
@@ -1160,13 +1296,13 @@ Essendo stata realizzata con grande cura ed essendo intrinsecamente complessa è
       qDebug()<<"PointsDrawn"<<pointsDrawn0;
       //Tracciamento ultimo punto della curva:
       if(xAxis.scaleType==stLin)
-        xf=double(ratio.x * (px[iFile][stopIndex[iFile]] - sxmin) +X0);
+        xf=double(xAxis.pixPerValue  * (px[iFile][stopIndex[iFile]] - sxmin) +X0);
       else
-        xf=double(ratio.x * (log10f(px[iFile][stopIndex[iFile]]) - sxmin) +X0);
+        xf=double(xAxis.pixPerValue  * (log10f(px[iFile][stopIndex[iFile]]) - sxmin) +X0);
       if(yAxis.scaleType==stLin)
-        yf=double(yAxis.width-yRatio*(py[iFile][iPlot][stopIndex[iFile]] - symin) +Y0);
+        yf=double(yAxis.widthPix-yRatio*(py[iFile][iPlot][stopIndex[iFile]] - symin) +Y0);
       else
-        yf=double(yAxis.width-yRatio*(log10f(py[iFile][iPlot][stopIndex[iFile]]) - symin) +Y0);
+        yf=double(yAxis.widthPix-yRatio*(log10f(py[iFile][iPlot][stopIndex[iFile]]) - symin) +Y0);
       x=xf+0.5;
       y=yf+0.5;
 
@@ -1181,7 +1317,6 @@ Per ora pertanto si lascia il codice con queste righe, riducendone al minimo le 
       //L'ultimo punto lo traccio solo se il penultimo era nel rettangolo:
       if(wasInRect){
         iWasInRect++;
-//        qDebug()<<"wasInRect, i:"<<wasInRect<<iWasInRect;
         if(FCd.isInRect(x,y)){
           path.lineTo(x1,y1);
           path.lineTo(x,y);
@@ -1209,13 +1344,12 @@ Per ora pertanto si lascia il codice con queste righe, riducendone al minimo le 
           myPainter->drawPath(path);
 //          qDebug() << "drawpath operation took" << timer.elapsed() << "milliseconds";
       }else{
-// Qui uso la sintassi che mi è stata suggerita da Samuel Rodal, ma è superflua l'iterazione fa i poligoni, visto che le mie curve sono composte tutte da un unico poligono. Notare l'uso di foreach(), estensione di Qt al C++ (significato accessibile via help).
+// Qui uso la sintassi che mi è stata suggerita da Samuel Rodal, ma è superflua l'iterazione fra i poligoni, visto che le mie curve sono composte tutte da un unico poligono. Notare l'uso di foreach(), estensione di Qt al C++ (significato accessibile via help).
           foreach(QPolygonF poly, path.toSubpathPolygons())
               for(int i=0; i<poly.size()-1; i++)
                   myPainter->drawLine(poly.at(i),poly.at(i+1));
-//          qDebug() << "foreach operation took" << timer.elapsed() << "milliseconds";
       }
-    } //Fine tracciamento varie curve relative ad un medesimo file
+    } //Fine tracciamento varie curve relative a un medesimo file
   } //Fine ciclo for fra i vari files
  return 0;
 }
@@ -1242,8 +1376,8 @@ La presente funzione serve quindi a verificare i cambiamenti di efficienza che s
       sxmin=xAxis.eMin;
     pointsDrawn=0;
     for(i=0; i<nFiles; i++){
-      xStartIndex[i]=NearInt(ratio.x * (px[i][startIndex[i]] - sxmin))+X0;
-      xStopIndex[i]=NearInt(ratio.x * (px[i][stopIndex[i]] - sxmin))+X0;
+      xStartIndex[i]=NearInt(xAxis.pixPerValue  * (px[i][startIndex[i]] - sxmin))+X0;
+      xStopIndex[i]=NearInt(xAxis.pixPerValue  * (px[i][stopIndex[i]] - sxmin))+X0;
     }
     if(NoCurves)return;
     for(i=0; i<nFiles; i++){
@@ -1251,19 +1385,19 @@ La presente funzione serve quindi a verificare i cambiamenti di efficienza che s
         if(blackWhite)
           plotPen.setColor(Qt::black);
         else
-          plotPen.setColor(lCurveParam[igraf].color);
+          plotPen.setColor(curveParamLst[igraf].color);
         myPainter->setPen(plotPen);
         iTotPlot++;
         // Calcolo YRatio e symin, valutando se sono relativi alla scala di sinistra o
         //a quella eventuale di destra:
-        if(lCurveParam[iTotPlot].rightScale){
-          yRatio=ratio.ry;
+        if(curveParamLst[iTotPlot].rightScale){
+          yRatio=ryAxis.pixPerValue ;
           if(yAxis.scaleType==stLin)
             symin=ryAxis.minF;
           else
             symin=ryAxis.eMin;
         }else{
-          yRatio=ratio.y;
+          yRatio=yAxis.pixPerValue ;
           if(yAxis.scaleType==stLin)
           symin=yAxis.minF;
         else
@@ -1271,24 +1405,24 @@ La presente funzione serve quindi a verificare i cambiamenti di efficienza che s
         }
         pointsDrawn0=0;
         if(xAxis.scaleType==stLin)
-          x1f=ratio.x * (px[i][startIndex[i]]-sxmin)+X0;
+          x1f=xAxis.pixPerValue  * (px[i][startIndex[i]]-sxmin)+X0;
         else
-          x1f=ratio.x * (log10f(px[i][startIndex[i]])-sxmin)+X0;
+          x1f=xAxis.pixPerValue  * (log10f(px[i][startIndex[i]])-sxmin)+X0;
         if(yAxis.scaleType==stLin)
-          y1f=yAxis.width-yRatio * (py[i][igraf][startIndex[i]]-symin)+Y0;
+          y1f=yAxis.widthPix-yRatio * (py[i][igraf][startIndex[i]]-symin)+Y0;
         else
-          y1f=yAxis.width-yRatio * (log10f(py[i][igraf][startIndex[i]])-symin)+Y0;
+          y1f=yAxis.widthPix-yRatio * (log10f(py[i][igraf][startIndex[i]])-symin)+Y0;
         poly << QPoint(int(x1f),int(y1f));
         //Tracciamento grafico
         for(icount=startIndex[i]+1; icount<=stopIndex[i]; icount++)	{
           if(xAxis.scaleType==stLin)
-            xf=ratio.x * (px[i][icount] - sxmin) +X0;
+            xf=xAxis.pixPerValue  * (px[i][icount] - sxmin) +X0;
           else
-            xf=ratio.x * (log10f(px[i][icount]) - sxmin) +X0;
+            xf=xAxis.pixPerValue  * (log10f(px[i][icount]) - sxmin) +X0;
           if(yAxis.scaleType==stLin)
-            yf=yAxis.width-yRatio*(py[i][igraf][icount] - symin) +Y0;
+            yf=yAxis.widthPix-yRatio*(py[i][igraf][icount] - symin) +Y0;
           else
-            yf=yAxis.width-yRatio*(log10f(py[i][igraf][icount]) - symin) +Y0;
+            yf=yAxis.widthPix-yRatio*(log10f(py[i][igraf][icount]) - symin) +Y0;
           poly << QPoint(int(xf),int(yf));
           pointsDrawn0++;
         } //Fine ciclo for tracciamento curve
@@ -1327,8 +1461,8 @@ L'unica differenza fra QtF e QtI sta nella linea "lineTo", la quint'ultima di co
     sxmin=xAxis.eMin;
   pointsDrawn=0;
   for(i=0; i<nFiles; i++){
-    xStartIndex[i]=NearInt(ratio.x * (px[i][startIndex[i]] - sxmin))+X0;
-    xStopIndex[i]=NearInt(ratio.x * (px[i][stopIndex[i]] - sxmin))+X0;
+    xStartIndex[i]=NearInt(xAxis.pixPerValue  * (px[i][startIndex[i]] - sxmin))+X0;
+    xStopIndex[i]=NearInt(xAxis.pixPerValue  * (px[i][stopIndex[i]] - sxmin))+X0;
   }
   if(NoCurves)return;
   for(i=0; i<nFiles; i++){
@@ -1336,19 +1470,19 @@ L'unica differenza fra QtF e QtI sta nella linea "lineTo", la quint'ultima di co
       if(blackWhite)
         plotPen.setColor(Qt::black);
       else
-        plotPen.setColor(lCurveParam[igraf].color);
+        plotPen.setColor(curveParamLst[igraf].color);
       myPainter->setPen(plotPen);
       iTotPlot++;
       // Calcolo YRatio e symin, valutando se sono relativi alla scala di sinistra o
       //a quella eventuale di destra:
-      if(lCurveParam[iTotPlot].rightScale){
-        yRatio=ratio.ry;
+      if(curveParamLst[iTotPlot].rightScale){
+        yRatio=ryAxis.pixPerValue ;
         if(yAxis.scaleType==stLin)
           symin=ryAxis.minF;
         else
           symin=ryAxis.eMin;
       }else{
-        yRatio=ratio.y;
+        yRatio=yAxis.pixPerValue ;
         if(yAxis.scaleType==stLin)
         symin=yAxis.minF;
       else
@@ -1356,24 +1490,24 @@ L'unica differenza fra QtF e QtI sta nella linea "lineTo", la quint'ultima di co
       }
       pointsDrawn0=0;
       if(xAxis.scaleType==stLin)
-        x1f=ratio.x * (px[i][startIndex[i]]-sxmin)+X0;
+        x1f=xAxis.pixPerValue  * (px[i][startIndex[i]]-sxmin)+X0;
       else
-        x1f=ratio.x * (log10f(px[i][startIndex[i]])-sxmin)+X0;
+        x1f=xAxis.pixPerValue  * (log10f(px[i][startIndex[i]])-sxmin)+X0;
       if(yAxis.scaleType==stLin)
-        y1f=yAxis.width-yRatio * (py[i][igraf][startIndex[i]]-symin)+Y0;
+        y1f=yAxis.widthPix-yRatio * (py[i][igraf][startIndex[i]]-symin)+Y0;
       else
-        y1f=yAxis.width-yRatio * (log10f(py[i][igraf][startIndex[i]])-symin)+Y0;
+        y1f=yAxis.widthPix-yRatio * (log10f(py[i][igraf][startIndex[i]])-symin)+Y0;
       path.moveTo(double(x1f),double(y1f));
       //Tracciamento grafico
       for(icount=startIndex[i]+1; icount<=stopIndex[i]; icount++)	{
         if(xAxis.scaleType==stLin)
-          xf=ratio.x * (px[i][icount] - sxmin) +X0;
+          xf=xAxis.pixPerValue  * (px[i][icount] - sxmin) +X0;
         else
-          xf=ratio.x * (log10f(px[i][icount]) - sxmin) +X0;
+          xf=xAxis.pixPerValue  * (log10f(px[i][icount]) - sxmin) +X0;
         if(yAxis.scaleType==stLin)
-          yf=yAxis.width-yRatio*(py[i][igraf][icount] - symin) +Y0;
+          yf=yAxis.widthPix-yRatio*(py[i][igraf][icount] - symin) +Y0;
         else
-          yf=yAxis.width-yRatio*(log10f(py[i][igraf][icount]) - symin) +Y0;
+          yf=yAxis.widthPix-yRatio*(log10f(py[i][igraf][icount]) - symin) +Y0;
         path.lineTo(double(xf),double(yf));
         pointsDrawn0++;
       } //Fine ciclo for tracciamento curve
@@ -1400,8 +1534,8 @@ Per la spiegazione vedere il commento alla funzione drawCurvesQtF.
     sxmin=xAxis.eMin;
   pointsDrawn=0;
   for(i=0; i<nFiles; i++){
-    xStartIndex[i]=NearInt(ratio.x * (px[i][startIndex[i]] - sxmin))+X0;
-    xStopIndex[i]=NearInt(ratio.x * (px[i][stopIndex[i]] - sxmin))+X0;
+    xStartIndex[i]=NearInt(xAxis.pixPerValue  * (px[i][startIndex[i]] - sxmin))+X0;
+    xStopIndex[i]=NearInt(xAxis.pixPerValue  * (px[i][stopIndex[i]] - sxmin))+X0;
   }
   if(NoCurves)return;
   for(i=0; i<nFiles; i++){
@@ -1409,19 +1543,19 @@ Per la spiegazione vedere il commento alla funzione drawCurvesQtF.
       if(blackWhite)
         plotPen.setColor(Qt::black);
       else
-        plotPen.setColor(lCurveParam[igraf].color);
+        plotPen.setColor(curveParamLst[igraf].color);
       myPainter->setPen(plotPen);
       iTotPlot++;
       // Calcolo YRatio e symin, valutando se sono relativi alla scala di sinistra o
       //a quella eventuale di destra:
-      if(lCurveParam[iTotPlot].rightScale){
-        YRatio=ratio.ry;
+      if(curveParamLst[iTotPlot].rightScale){
+        YRatio=ryAxis.pixPerValue ;
         if(yAxis.scaleType==stLin)
           symin=ryAxis.minF;
         else
           symin=ryAxis.eMin;
       }else{
-        YRatio=ratio.y;
+        YRatio=yAxis.pixPerValue ;
         if(yAxis.scaleType==stLin)
         symin=yAxis.minF;
       else
@@ -1429,24 +1563,24 @@ Per la spiegazione vedere il commento alla funzione drawCurvesQtF.
       }
       PointsDrawn0=0;
       if(xAxis.scaleType==stLin)
-        x1f=ratio.x * (px[i][startIndex[i]]-sxmin)+X0;
+        x1f=xAxis.pixPerValue  * (px[i][startIndex[i]]-sxmin)+X0;
       else
-        x1f=ratio.x * (log10f(px[i][startIndex[i]])-sxmin)+X0;
+        x1f=xAxis.pixPerValue  * (log10f(px[i][startIndex[i]])-sxmin)+X0;
       if(yAxis.scaleType==stLin)
-        y1f=yAxis.width-YRatio * (py[i][igraf][startIndex[i]]-symin)+Y0;
+        y1f=yAxis.widthPix-YRatio * (py[i][igraf][startIndex[i]]-symin)+Y0;
       else
-        y1f=yAxis.width-YRatio * (log10f(py[i][igraf][startIndex[i]])-symin)+Y0;
+        y1f=yAxis.widthPix-YRatio * (log10f(py[i][igraf][startIndex[i]])-symin)+Y0;
       path.moveTo(double(x1f),double(y1f));
       //Tracciamento grafico
       for(icount=startIndex[i]+1; icount<=stopIndex[i]; icount++)	{
         if(xAxis.scaleType==stLin)
-          xf=ratio.x * (px[i][icount] - sxmin) +X0;
+          xf=xAxis.pixPerValue  * (px[i][icount] - sxmin) +X0;
         else
-          xf=ratio.x * (log10f(px[i][icount]) - sxmin) +X0;
+          xf=xAxis.pixPerValue  * (log10f(px[i][icount]) - sxmin) +X0;
         if(yAxis.scaleType==stLin)
-          yf=yAxis.width-YRatio*(py[i][igraf][icount] - symin) +Y0;
+          yf=yAxis.widthPix-YRatio*(py[i][igraf][icount] - symin) +Y0;
         else
-          yf=yAxis.width-YRatio*(log10f(py[i][igraf][icount]) - symin) +Y0;
+          yf=yAxis.widthPix-YRatio*(log10f(py[i][igraf][icount]) - symin) +Y0;
         path.lineTo(double(xf),double(yf));
         PointsDrawn0++;
       } //Fine ciclo for tracciamento curve
@@ -1548,8 +1682,8 @@ void CLineChart::drawSwarm(void){
     sxmin=xAxis.eMin;
   pointsDrawn=0;
   for(i=0; i<nFiles; i++){
-    xStartIndex[i]=NearInt(ratio.x * (px[i][startIndex[i]] - sxmin))+X0;
-    xStopIndex[i]=NearInt(ratio.x * (px[i][stopIndex[i]] - sxmin))+X0;
+    xStartIndex[i]=NearInt(xAxis.pixPerValue  * (px[i][startIndex[i]] - sxmin))+X0;
+    xStopIndex[i]=NearInt(xAxis.pixPerValue  * (px[i][stopIndex[i]] - sxmin))+X0;
   }
   for(i=0; i<nFiles; i++){
     for(igraf=0; igraf<nPlots[i]; igraf++) {
@@ -1557,17 +1691,17 @@ void CLineChart::drawSwarm(void){
       if(blackWhite)
         plotPen.setColor(Qt::black);
       else
-        plotPen.setColor(lCurveParam[iTotPlot].color);
+        plotPen.setColor(curveParamLst[iTotPlot].color);
       myPainter->setPen(plotPen);
 // Calcolo YRatio e symin, valutando se sono relativi alla scala di sinistra o a quella eventuale di destra:
-      if(lCurveParam[iTotPlot].rightScale){
-        yRatio=ratio.ry;
+      if(curveParamLst[iTotPlot].rightScale){
+        yRatio=ryAxis.pixPerValue ;
         if(yAxis.scaleType==stLin)
           symin=ryAxis.minF;
         else
           symin=ryAxis.eMin;
       }else{
-         yRatio=ratio.y;
+         yRatio=yAxis.pixPerValue ;
          if(yAxis.scaleType==stLin)
            symin=yAxis.minF;
          else
@@ -1575,35 +1709,35 @@ void CLineChart::drawSwarm(void){
       }
       pointsDrawn0=0;
       if(xAxis.scaleType==stLin)
-        x1f=ratio.x * (px[i][startIndex[i]]-sxmin)+X0;
+        x1f=xAxis.pixPerValue  * (px[i][startIndex[i]]-sxmin)+X0;
       else
-        x1f=ratio.x * (log10f(px[i][startIndex[i]])-sxmin)+X0;
+        x1f=xAxis.pixPerValue  * (log10f(px[i][startIndex[i]])-sxmin)+X0;
       if(yAxis.scaleType==stLin)
-        y1f=yAxis.width-yRatio * (py[i][igraf][startIndex[i]]-symin)+Y0;
+        y1f=yAxis.widthPix-yRatio * (py[i][igraf][startIndex[i]]-symin)+Y0;
       else
-        y1f=yAxis.width-yRatio * (log10f(py[i][igraf][startIndex[i]])-symin)+Y0;
+        y1f=yAxis.widthPix-yRatio * (log10f(py[i][igraf][startIndex[i]])-symin)+Y0;
       x1=NearInt(x1f);
       y1=NearInt(y1f);
       if(xAxis.scaleType==stLin)
-        xf=ratio.x * (px[i][startIndex[i]]-sxmin)+X0;
+        xf=xAxis.pixPerValue  * (px[i][startIndex[i]]-sxmin)+X0;
       else
-        xf=ratio.x * (log10f(px[i][startIndex[i]])-sxmin)+X0;
+        xf=xAxis.pixPerValue  * (log10f(px[i][startIndex[i]])-sxmin)+X0;
       if(yAxis.scaleType==stLin)
-        yf=yAxis.width-yRatio * (py[i][igraf][startIndex[i]]-symin)+Y0;
+        yf=yAxis.widthPix-yRatio * (py[i][igraf][startIndex[i]]-symin)+Y0;
       else
-        yf=yAxis.width-yRatio * (log10f(py[i][igraf][startIndex[i]])-symin)+Y0;
+        yf=yAxis.widthPix-yRatio * (log10f(py[i][igraf][startIndex[i]])-symin)+Y0;
       x=NearInt(xf);
       y=NearInt(yf);
       FC.getLine(x1,y1,x,y);
 //Grafico fino al penultimo punto, con filtraggio e "Clippaggio". Il primo e l'ultimo punto li traccio fuori del loop: il primo altrimenti non verrebbe tracciato, l'ultimo per essere certo che venga comunque tracciato, anche se è nel prolungamento della retta congiungente i due punti precedenti.
       if(xAxis.scaleType==stLin)
-        xf=ratio.x * (px[i][startIndex[i]] - sxmin) +X0;
+        xf=xAxis.pixPerValue  * (px[i][startIndex[i]] - sxmin) +X0;
       else
-        xf=ratio.x * (log10f(px[i][startIndex[i]]) - sxmin) +X0;
+        xf=xAxis.pixPerValue  * (log10f(px[i][startIndex[i]]) - sxmin) +X0;
       if(yAxis.scaleType==stLin)
-        yf=yAxis.width-yRatio*(py[i][igraf][startIndex[i]] - symin) +Y0;
+        yf=yAxis.widthPix-yRatio*(py[i][igraf][startIndex[i]] - symin) +Y0;
        else
-        yf=yAxis.width-yRatio*(log10f(py[i][igraf][startIndex[i]]) - symin) +Y0;
+        yf=yAxis.widthPix-yRatio*(log10f(py[i][igraf][startIndex[i]]) - symin) +Y0;
       x=xf+0.5f;
       y=yf+0.5f;
       if(swarmPointSize==ssPixel)
@@ -1614,13 +1748,13 @@ void CLineChart::drawSwarm(void){
       pointsDrawn0++;
       for(icount=startIndex[i]+1; icount<stopIndex[i]; icount++)	{
         if(xAxis.scaleType==stLin)
-          xf=ratio.x * (px[i][icount] - sxmin) +X0;
+          xf=xAxis.pixPerValue  * (px[i][icount] - sxmin) +X0;
         else
-          xf=ratio.x * (log10f(px[i][icount]) - sxmin) +X0;
+          xf=xAxis.pixPerValue  * (log10f(px[i][icount]) - sxmin) +X0;
         if(yAxis.scaleType==stLin)
-          yf=yAxis.width-yRatio*(py[i][igraf][icount] - symin) +Y0;
+          yf=yAxis.widthPix-yRatio*(py[i][igraf][icount] - symin) +Y0;
         else
-          yf=yAxis.width-yRatio*(log10f(py[i][igraf][icount]) - symin) +Y0;
+          yf=yAxis.widthPix-yRatio*(log10f(py[i][igraf][icount]) - symin) +Y0;
         x=xf+0.5f;
         y=yf+0.5f;
         if(FC.isInRect(x,y)){ //Traccio il punto
@@ -1634,13 +1768,13 @@ void CLineChart::drawSwarm(void){
       } //Fine ciclo for tracciamento curve
       //Tracciamento ultimo punto della curva:
       if(xAxis.scaleType==stLin)
-        xf=ratio.x * (px[i][stopIndex[i]] - sxmin) +X0;
+        xf=xAxis.pixPerValue  * (px[i][stopIndex[i]] - sxmin) +X0;
       else
-        xf=ratio.x * (log10f(px[i][stopIndex[i]]) - sxmin) +X0;
+        xf=xAxis.pixPerValue  * (log10f(px[i][stopIndex[i]]) - sxmin) +X0;
       if(yAxis.scaleType==stLin)
-        yf=yAxis.width-yRatio*(py[i][igraf][stopIndex[i]] - symin) +Y0;
+        yf=yAxis.widthPix-yRatio*(py[i][igraf][stopIndex[i]] - symin) +Y0;
       else
-        yf=yAxis.width-yRatio*(log10f(py[i][igraf][stopIndex[i]]) - symin) +Y0;
+        yf=yAxis.widthPix-yRatio*(log10f(py[i][igraf][stopIndex[i]]) - symin) +Y0;
       x=xf+0.5f;
       y=yf+0.5f;
       //Traccio l'ultimo punto :
@@ -1659,7 +1793,7 @@ void CLineChart::drawSwarm(void){
   } //Fine ciclo for fra i vari files
 }
 
-int CLineChart::smartDrawUnit(QPainter * myPainter, QFont baseFont, int X, int Y, EadjustType hAdjust, EadjustType vAdjust, QString text,  bool addBrackets, bool Virtual ){
+int CLineChart::smartWriteUnit(QPainter * myPainter, QFont baseFont, int X, int Y, EadjustType hAdjust, EadjustType vAdjust, QString text,  bool addBrackets, bool Virtual ){
   /*
    * ***
    * FUNZIONE PURA
@@ -1691,7 +1825,6 @@ int CLineChart::smartDrawUnit(QPainter * myPainter, QFont baseFont, int X, int Y
    * Se  Virtual=true, la stringa non è scritta, e questa funzione ha il solo scopo del
    * calcolo della larghezza (come valore di ritorno)
    *
-   *
    * Il font di painter è temporaneamente modificato sia per fare l'esponente che per
    * l'eventuale omega in stile symbol, e poi rimesso al valore del widget in uscita.
    *
@@ -1699,7 +1832,7 @@ int CLineChart::smartDrawUnit(QPainter * myPainter, QFont baseFont, int X, int Y
    * le eventuali parentesi.
    */
 
-   bool specialCase=false;
+   bool specialCase=false;  // caso speciale delle potenze di 10
    QFont   wFont; //work font
    if(text=="")
        return 0;
@@ -1721,9 +1854,11 @@ int CLineChart::smartDrawUnit(QPainter * myPainter, QFont baseFont, int X, int Y
   for(int i=0; i<text.size(); i++){
     wFont=baseFont;
     QChar c=text[i];
-    if(c=='w') c=0x03A9; //unicode per omega maiuscolo
-    if(c=='u') c=0x03BC; //unicode per mu minuscolo
-    if(c.isDigit()||c=='-'||c=='+'||c=='.'){  //Vedo se questi caratteri vanno trattati come esponenti
+    if(useSmartUnits){
+      if(c=='w') c=QChar(0x03A9); //unicode per omega maiuscolo
+      if(c=='u') c=QChar(0x03BC); //unicode per mu minuscolo
+	}  
+    if(useSmartUnits && (c.isDigit()||c=='-'||c=='+'||c=='.')){  //Vedo se questi caratteri vanno trattati come esponenti
       wFont=baseFont;
       if(specialCase && i>2)
           wFont.setPixelSize(expSize);
@@ -1733,11 +1868,11 @@ int CLineChart::smartDrawUnit(QPainter * myPainter, QFont baseFont, int X, int Y
         wFont=baseFont;
     }
     myPainter->setFont(wFont);
-    len+=myPainter->fontMetrics().width(c);
+    len+=myPainter->fontMetrics().horizontalAdvance(c);
   }
   myPainter->setFont(baseFont);
   if(addBrackets)
-    len+=myPainter->fontMetrics().width("()");
+    len+=myPainter->fontMetrics().horizontalAdvance("()");
   if(Virtual)
   return len;
   //Il calcolo preliminare appena fatto mi serve per la gestione del punto di inizio della scrittura tenendo conto dei vari allineamenti previsti. Per ora però non lo uso e passo alla scrittura.
@@ -1752,31 +1887,33 @@ int CLineChart::smartDrawUnit(QPainter * myPainter, QFont baseFont, int X, int Y
     wY+=myPainter->fontMetrics().height()/2-1;
   if(addBrackets){
     myPainter->drawText(wX,wY,"(");
-    wX+=myPainter->fontMetrics().width("(");
+    wX+=myPainter->fontMetrics().horizontalAdvance("(");
   }
-  for(int i=0; i<text.size(); i++){
-    wFont=baseFont;
-    QChar c=text[i];
-    if(c=='w') c=0x03A9; //unicode per omega maiuscolo
-    if(c=='u') c=0x03BC; //unicode per mu minuscolo
-    if(c.isDigit()||c=='-'||c=='+'||c=='.'){
+    for(int i=0; i<text.size(); i++){
       wFont=baseFont;
-      if( (specialCase && i>2) || (!specialCase && i>0)){
-        wFont.setPixelSize(expSize);
-        qDebug()<<"expSize: "<< expSize << "; expOffs: " << expOffs;
-        myPainter->setFont(wFont);
-        myPainter->drawText(wX,wY-expOffs,QString(c));
-      }else{
-        myPainter->setFont(wFont);
-        myPainter->drawText(wX,wY,QString(c));
+      QChar c=text[i];
+      if(useSmartUnits){
+        if(c=='w') c=QChar(0x03A9); //unicode per omega maiuscolo
+        if(c=='u') c=QChar(0x03BC); //unicode per mu minuscolo
       }
-      wX+=myPainter->fontMetrics().width(c);
-    } else{
-      myPainter->setFont(baseFont);
-      myPainter->drawText(wX,wY,QString(c));
-      wX+=myPainter->fontMetrics().width(c);
+      if(useSmartUnits && (c.isDigit()||c=='-'||c=='+'||c=='.')){
+        wFont=baseFont;
+        if( (specialCase && i>2) || (!specialCase && i>0)){
+          wFont.setPixelSize(expSize);
+          qDebug()<<"expSize: "<< expSize << "; expOffs: " << expOffs;
+          myPainter->setFont(wFont);
+          myPainter->drawText(wX,wY-expOffs,QString(c));
+        }else{
+          myPainter->setFont(wFont);
+          myPainter->drawText(wX,wY,QString(c));
+        }
+        wX+=myPainter->fontMetrics().horizontalAdvance(c);
+      } else{
+        myPainter->setFont(baseFont);
+        myPainter->drawText(wX,wY,QString(c));
+        wX+=myPainter->fontMetrics().horizontalAdvance(c);
+      }
     }
-  }
 
   if(addBrackets){
     myPainter->setFont(baseFont);
@@ -1787,15 +1924,32 @@ int CLineChart::smartDrawUnit(QPainter * myPainter, QFont baseFont, int X, int Y
 
 
 
-int CLineChart::drawText2(int X, int Y, EadjustType hAdjust, EadjustType vAdjust, QString msg1, QString msg2, bool addBrackets, bool Virtual){
-/* Function che serve per mettere su una canvas il testo msg1, seguito dal testo  msg2, come esponente (più piccolo e allineato in alto). Gestisce gli allineamenti (orizzontale e verticale) specificati, ritorna la larghezza in pixel della stringa completa.
-Notare che:
-- se  Virtual=true, la stringa non è scritta, e questa funzione ha il solo scopo del calcolo della larghezza (come valore di ritorno) MA AL MOMENTO (SETT 2015) NON E' MAI RICHIAMATA CON L'ULTIMO PARAMETRO TRUE!.
-Note Qt:
-- All'ingresso in questa funzione "painter" ha il valore default del widget CLineChart. Quindi painter>fontMetrics() coincide con fontMetrics() e con this->fontMetrics().
-- Il font di painter è temporaneamente modificato sia per fare l'esponente che per l'eventuale omega in stile symbol, e poi rimesso al valore del widget in uscita.
-
-VALORE DI RITORNO: la lunghezza in pixel della stringa composita, considerando sia msg1 che msg2 che le eventuali parentesi.
+int CLineChart::writeText2(QPainter * myPainter, int X, int Y, EadjustType hAdjust, EadjustType vAdjust, QString msg1, QString msg2, bool addBrackets, bool Virtual){
+/*
+ *    * ***
+   * FUNZIONE PURA
+   * Questa è una funzione pura nel senso di Modelica: non usa alcuna variabile dell'
+   * oggetto a cui appartiene, che non sia passata fra i parametri.
+   * In tal modo la riutilizzabilità in CLineChart è grandemente facilitata.
+   * ***
+   *
+   * Function che serve per mettere su una canvas il testo msg1, seguito dal testo  msg2,
+ * come esponente (più piccolo e allineato in alto). Gestisce gli allineamenti (orizzontale
+ *  e verticale) specificati, ritorna la larghezza in pixel della stringa completa.
+ *
+ * Notare che:
+ * - se  Virtual=true, la stringa non è scritta, e questa funzione ha il solo scopo del
+ *   calcolo della larghezza (come valore di ritorno) MA AL MOMENTO (SETT 2015) NON E'
+ *  MAI RICHIAMATA CON L'ULTIMO PARAMETRO TRUE!.
+ *
+ * Note Qt:
+ * - All'ingresso in questa funzione "painter" ha il valore default del widget CLineChart.
+ *   Quindi painter>fontMetrics() coincide con fontMetrics() e con this->fontMetrics().
+ * - Il font di painter è temporaneamente modificato sia per fare l'esponente che per
+ *   l'eventuale omega in stile symbol, e poi rimesso al valore del widget in uscita.
+ *
+ *  VALORE DI RITORNO: la lunghezza in pixel della stringa composita, considerando sia
+ * msg1 che msg2 che le eventuali parentesi.
 */
   int len=0; //Lunghezza senza hOffset;
   int ret; //valore di ritorno: lunghezza compreso hOffset
@@ -1811,14 +1965,14 @@ Questo ha comportato nel seguente if la sostituzione di "atLeft" con "atRight" e
   if(msg1+msg2=="")
       return 0;
   myPainter->setFont(baseFont);
-  width1=myPainter->fontMetrics().width(msg1);
+  width1=myPainter->fontMetrics().horizontalAdvance(msg1);
   H1=myPainter->fontMetrics().height();
   myPainter->setFont(expFont);
-  width2=myPainter->fontMetrics().width(msg2);
+  width2=myPainter->fontMetrics().horizontalAdvance(msg2);
   H2=myPainter->fontMetrics().height();
 
   if(addBrackets)
-    wBracket=myPainter->fontMetrics().width("(");
+    wBracket=myPainter->fontMetrics().horizontalAdvance("(");
   else
     wBracket=0;
 
@@ -1899,10 +2053,10 @@ bool CLineChart::event(QEvent *event){
           setToolTip("");
           foreach(SHoveringData hovData, hovDataLst){
             if(hovData.rect.contains(pos)){
-              if(!lCurveParam[hovData.iTotPlot].isFunction)break;
+              if(!curveParamLst[hovData.iTotPlot].isFunction)break;
               hovVarRect= hovData.rect;
-              QString str=lCurveParam[hovData.iTotPlot].fullName;
-              QToolTip::showText(helpEvent->globalPos(), lCurveParam[hovData.iTotPlot].fullName);
+//              QString str=curveParamLst[hovData.iTotPlot].fullName;
+              QToolTip::showText(helpEvent->globalPos(), curveParamLst[hovData.iTotPlot].fullName);
 //              setToolTip(lCurveParam[hovData.iTotPlot].fullName);
             }
           }
@@ -1983,7 +2137,7 @@ bool  CLineChart::fillPixelToIndexLog(int **pixelToIndexDX){
     pixelToIndexDX[iFile][0]=index;
     val0=log10f(px[iFile][index]/xAxis.scaleMin);
     for(iPix=1; iPix<=X1-X0; iPix++){
-      while (log10f(px[iFile][index]/xAxis.scaleMin)<iPix/ratio.x+val0 &&
+      while (log10f(px[iFile][index]/xAxis.scaleMin)<iPix/xAxis.pixPerValue +val0 &&
              index<filesInfo[iFile].numOfPoints-1)
           index++;
       pixelToIndexDX[iFile][iPix]=index;
@@ -2019,11 +2173,11 @@ void CLineChart::getData(float *px_,float **py_, int nPoints_, int nPlots_){
    //Attribuisco valori default standard alle variabili necessarie al getData per singole variabili asse x,
    FI.name="fileName";
    FI.numOfPoints=nPoints_;
-   FI.variableStep=false;
+   FI.variableStep=true;
    xVarParam.name="x";
    xVarParam.isMonotonic=true;
-   xVarParam.isVariableStep=false;
-   lCurveParam.clear();
+   xVarParam.isVariableStep=true;
+   curveParamLst.clear();
    SCurveParam param;
    for(i=0; i<nPlots_; i++){
      if(i==0)param.color=Qt::red;
@@ -2034,10 +2188,11 @@ void CLineChart::getData(float *px_,float **py_, int nPoints_, int nPlots_){
      param.name="var";
      param.rightScale=false;
      param.unitS="";
-     lCurveParam.append(param);
+     param.style=Qt::SolidLine;
+     curveParamLst.append(param);
     }
 
-   getData(FI,  nPlots_, xVarParam, lCurveParam, px_, py_);
+   getData(FI,  nPlots_, xVarParam, curveParamLst, px_, py_);
 
 }
 void CLineChart::getData(SFileInfo FI, int nPlots_,  SXVarParam xVarParam_, QList <SCurveParam> &lCurveParam_,float *px_,float **py_){
@@ -2053,7 +2208,7 @@ void CLineChart::getData(SFileInfo FI, int nPlots_,  SXVarParam xVarParam_, QLis
     nPlots.append(nPlots_);
 
     xVarParam=xVarParam_;
-    lCurveParam=lCurveParam_;
+    curveParamLst=lCurveParam_;
 
     nFiles=1;
     delete[] px;
@@ -2074,7 +2229,7 @@ void CLineChart::getData(QList <SFileInfo> FIlist, const QVector <int> &nPlots_,
     nFiles=FIlist.count();
     nPlots=nPlots_;
     xVarParam=xVarParam_;
-    lCurveParam=lCurveParam_;
+    curveParamLst=lCurveParam_;
     px=px_;
     py=py_;
     numOfTotPlots=0;
@@ -2132,6 +2287,7 @@ EPlotPenWidth CLineChart::givePlotPenWidth() const {
     return giveValues(cursorX, interpolation, nearX, Xdiff, Ydiff);
 }
 
+
 SXYValues CLineChart::giveValues(int cursorX, bool interpolation, int &nearX, bool xDiff, bool yDiff){
 /*  Function che dà i valori delle variabili visualizzate in corrispondenza della posizione, passata come parametro, della retta di cursore.
  Nel vettore di uscita si troverà prima il valore della variabile sull'asse x,  poi quello delle variabili sull'asse y.
@@ -2144,114 +2300,116 @@ Argomenti:
 - xDiff e yDiff se true danno le differenze rispetto ai valori del precedente cursore
 */
 
-    /******************************************************************
-    Questa funzione dà per scontato che sia già stato effettuato un plot, e non fa alcun
-    check a riguardo. E' responsabilità del chiamante richiamare questa funzione soltanto
-    se esiste un plot effettuato in LineChart.
-    ****************************************************************/
+  /******************************************************************
+  Questa funzione dà per scontato che sia già stato effettuato un plot, e non fa alcun
+  check a riguardo. E' responsabilità del chiamante richiamare questa funzione soltanto
+  se esiste un plot effettuato in LineChart.
+  ****************************************************************/
 
-    int iFile, iVar,
-       netCursorX,//valore del cursorX passato valutato entro il rettangolo (X0, Y0, X1, Y1)
-       iVSFile=0, //indice del file VariableStep
-       indexSX, //Indice del punto a SX del cursore
-       index;//l'indice del punto più vicino al cursore
-    float fCursorX,//valore numerico sull'asse x corrispondente alla posizione del cursore
-            deltaX, slope;
-    SXYValues ret;
-    netCursorX=qMin(qMax(cursorX-X0-margin,0),X1-X0-2*margin);
-    if(xAxis.scaleType==stLin)
-        fCursorX=xAxis.scaleMin*xAxis.scaleFactor+netCursorX/ratio.x;
-    else{
-        //In questo caso devo tener conto del logaritmo per la costruzione del grafico,
-        // e posso omettere ScaleFactor che è sempre unitario:
-        fCursorX=powf(10,xAxis.eMin+netCursorX/ratio.x);
-    }
-    //Può capitare che il cursore sia fuori della zona in cui ci sono grafici.
-    //In tal caso riporto dentro il valore di fCusorX:
+  int iFile, iVar,
+    netCursorX,//valore del cursorX passato valutato entro il rettangolo (X0, Y0, X1, Y1)
+    iVSFile=0, //indice del file VariableStep
+    indexSX, //Indice del punto a SX del cursore
+    index;//l'indice del punto più vicino al cursore
+  float fCursorX,//valore numerico sull'asse x corrispondente alla posizione del cursore
+        deltaX, slope;
+  SXYValues ret;
+  netCursorX=qMin(qMax(cursorX-X0-margin,0),X1-X0-2*margin);
+  if(xAxis.scaleType==stLin)
+    fCursorX=xAxis.scaleMin*xAxis.scaleFactor+netCursorX/xAxis.pixPerValue ;
+  else{
+    //In questo caso devo tener conto del logaritmo per la costruzione del grafico,
+    // e posso omettere ScaleFactor che è sempre unitario:
+    fCursorX=powf(10,xAxis.eMin+netCursorX/xAxis.pixPerValue );
+  }
+  //Può capitare che il cursore sia fuori della zona in cui ci sono grafici.
+  //In tal caso riporto dentro il valore di fCusorX:
  //    fCursorX=min(fCursorX,xmM.Max);
  //   fCursorX=max(fCursorX,xmM.Min);
-    fCursorX=qMin(fCursorX,dispRect.Right);
-    fCursorX=qMax(fCursorX,dispRect.Left);
-    if(xDiff)
-      lastXCurs[1]=fCursorX;
-    else if(yDiff)
-      lastXCurs[2]=fCursorX;
-    else
-      lastXCurs[0]=fCursorX;
+  fCursorX=qMin(fCursorX,dispRect.Right);
+  fCursorX=qMax(fCursorX,dispRect.Left);
+  if(xDiff)
+    lastXCurs[1]=fCursorX;
+  else if(yDiff)
+    lastXCurs[2]=fCursorX;
+  else
+    lastXCurs[0]=fCursorX;
 
 
-    if(!xVarParam.isMonotonic){
-        QMessageBox::critical(this,"MC's PlotXY","X variable here must be monotonic",QMessageBox::Ok);
-//        qApp->closeAllWindows();
-        //Le seguenti due righe solo per evitare un Warning:
-        ret.X=cursorXValues;
-        ret.Y=cursorYValues;
-        return ret;
-    }
-    for(iFile=0; iFile<nFiles; iFile++){
-        int nPoints=filesInfo[iFile].numOfPoints;
+  if(!xVarParam.isMonotonic){
+     QMessageBox::critical(this,"MC's PlotXY","X variable here must be monotonic",QMessageBox::Ok);
+//      qApp->closeAllWindows();
+     //Le seguenti due righe solo per evitare un Warning:
+     ret.X=cursorXValues;
+     ret.Y=cursorYValues;
+     return ret;
+  }
+  for(iFile=0; iFile<nFiles; iFile++){
+    int nPoints=filesInfo[iFile].numOfPoints;
 /***Per ogni grafico scelgo la coppia di valori più vicina alla riga-cursore visualizzata:     ***/
-        if(filesInfo[iFile].variableStep){
-            indexSX=qMax(0,pixelToIndexDX[iVSFile][netCursorX]-1);
-            deltaX=px[iFile][indexSX+1]-px[iFile][indexSX];
-            if(fCursorX-px[iFile][indexSX]<px[iFile][indexSX+1]-fCursorX)
-                index=indexSX;
-            else
-                index=indexSX+1;
-        }else{
-            deltaX=px[iFile][1]-px[iFile][0];
-            indexSX=int((fCursorX-px[iFile][0])/deltaX);
+    if(filesInfo[iFile].variableStep){
+      indexSX=qMax(0,pixelToIndexDX[iVSFile][netCursorX]-1);
+      deltaX=px[iFile][indexSX+1]-px[iFile][indexSX];
+      if(fCursorX-px[iFile][indexSX]<px[iFile][indexSX+1]-fCursorX)
+        index=indexSX;
+      else
+        index=indexSX+1;
+    }else{
+      deltaX=px[iFile][1]-px[iFile][0];
+      indexSX=int((fCursorX-px[iFile][0])/deltaX);
 
-            index=NearInt((fCursorX-px[iFile][0])/deltaX);
-            //Può accadere che fra l'ultimo e il penultimo punto non si abbia la stessa distanza
-            //che fra gli altri. Questo perché se Tmax supera TOld+DeltaT, vengono registrati
-            //i valori a Tmax e non a TOld+DeltaT. La seguente riga considera questa eventualità:
-            if(  fabsf(px[iFile][nPoints-1]-fCursorX)  <  fabsf(px[iFile][nPoints-2]-fCursorX)
-             &&  index<nPoints-1    ) index++;
-        }
-        if(interpolation){
-            for(iVar=0; iVar<nPlots[iFile]; iVar++){
-                slope=(py[iFile][iVar][indexSX+1]-py[iFile][iVar][indexSX])/deltaX;
-                cursorXValues[iFile]=fCursorX-int(xDiff*cursorXValBkp[iFile]);
-                cursorYValues[iFile][iVar]=py[iFile][iVar][indexSX]+
-               /*Slope=DeltaY/DeltaX:*/ slope*(fCursorX-px[iFile][indexSX]) -int(yDiff* cursorYValBkp[iFile][iVar]);
-                if(!yDiff)cursorYValBkp[iFile][iVar]=cursorYValues[iFile][iVar];
-            }
-        }else{
-          /*Occorre tener conto della possibilità che non tutti i grafici hanno piena
-          lunghezza. Dove ho un valore non inizializzato, per convenzione (simile a
-          quella di MODELS) gli dò il valore 8888.8
-          */
-          for(iVar=0; iVar<nPlots[iFile]; iVar++){
-            if(fCursorX<=px[iFile][nPoints-1]){
-              cursorXValues[iFile]=px[iFile][index]-int(xDiff*cursorXValBkp[iFile]);
-              cursorYValues[iFile][iVar]=py[iFile][iVar][index] -int(yDiff* cursorYValBkp[iFile][iVar]);
-              if(!yDiff)cursorYValBkp[iFile][iVar]=cursorYValues[iFile][iVar];
-            }else{
-              cursorXValues[iFile]=8888.8f;
-              cursorYValues[iFile][iVar]=8888.8f;
-            }
-          }
-        }
-        if(filesInfo[iFile].variableStep)  iVSFile++;
-        if(interpolation||nFiles>1)
-          nearX=cursorX;
-        else{
-          if(cursorXValues[iFile]==8888.8f)
-            nearX=X0;
-          else{
-            if(xAxis.scaleType==stLin)
-              nearX=X0+margin+int(ratio.x*(cursorXValues[iFile]+xDiff*cursorXValBkp[iFile]  -xAxis.scaleMin* xAxis.scaleFactor));
-            else
-              nearX=X0+margin+int(ratio.x*log10f(cursorXValues[iFile]/xAxis.scaleMin));
-          }
-        }
-        if(!xDiff)
-          cursorXValBkp[iFile]=cursorXValues[iFile];
+      index=NearInt((fCursorX-px[iFile][0])/deltaX);
+      //Può accadere che fra l'ultimo e il penultimo punto non si abbia la stessa distanza
+      //che fra gli altri. Questo perché se Tmax supera TOld+DeltaT, vengono registrati
+      //i valori a Tmax e non a TOld+DeltaT. La seguente riga considera questa eventualità:
+      if(  fabsf(px[iFile][nPoints-1]-fCursorX)  <  fabsf(px[iFile][nPoints-2]-fCursorX)
+         &&  index<nPoints-1    ) index++;
     }
-    ret.X=cursorXValues;
-    ret.Y=cursorYValues;
-    return ret;
+    if(interpolation){
+      for(iVar=0; iVar<nPlots[iFile]; iVar++){
+        slope=(py[iFile][iVar][indexSX+1]-py[iFile][iVar][indexSX])/deltaX;
+        cursorXValues[iFile]=fCursorX-int(xDiff*cursorXValBkp[iFile]);
+        cursorYValues[iFile][iVar]=py[iFile][iVar][indexSX]+
+        /*Slope=DeltaY/DeltaX:*/ slope*(fCursorX-px[iFile][indexSX]) -int(yDiff)* cursorYValBkp[iFile][iVar];
+        if(!yDiff)cursorYValBkp[iFile][iVar]=cursorYValues[iFile][iVar];
+      }
+    }else{
+      /*Occorre tener conto della possibilità che non tutti i grafici hanno piena
+      lunghezza. Dove ho un valore non inizializzato, per convenzione (simile a
+      quella di MODELS) gli dò il valore 8888.8
+      */
+      for(iVar=0; iVar<nPlots[iFile]; iVar++){
+        if(fCursorX<=px[iFile][nPoints-1]){
+          cursorXValues[iFile]=px[iFile][index]-int(xDiff)*cursorXValBkp[iFile];
+          cursorYValues[iFile][iVar]=py[iFile][iVar][index] -int(yDiff)* cursorYValBkp[iFile][iVar];
+          if(!yDiff)cursorYValBkp[iFile][iVar]=cursorYValues[iFile][iVar];
+        }else{
+          cursorXValues[iFile]=8888.8f;
+          cursorYValues[iFile][iVar]=8888.8f;
+        }
+      }
+    }
+    if(filesInfo[iFile].variableStep)
+      iVSFile++;
+    if(interpolation||nFiles>1)
+      nearX=cursorX;
+    else{
+      if(cursorXValues[iFile]==8888.8f)
+        nearX=X0;
+      else{
+        if(xAxis.scaleType==stLin)
+          nearX=X0+margin+int(xAxis.pixPerValue * (cursorXValues[iFile]+xDiff*
+                cursorXValBkp[iFile] -xAxis.scaleMin*xAxis.scaleFactor));
+        else
+          nearX=X0+margin+int(xAxis.pixPerValue *log10f(cursorXValues[iFile]/xAxis.scaleMin));
+      }
+    }
+    if(!xDiff)
+      cursorXValBkp[iFile]=cursorXValues[iFile];
+  }
+  ret.X=cursorXValues;
+  ret.Y=cursorYValues;
+  return ret;
 }
 
 int CLineChart::giveNearValue(QPoint mouseP , QPoint &nearP, QPointF &valueP){
@@ -2295,11 +2453,11 @@ int CLineChart::giveNearValue(QPoint mouseP , QPoint &nearP, QPointF &valueP){
   netMouseP.ry()=qMin(qMax(mouseP.y()-Y0,0),Y1-Y0);
 
   if(xAxis.scaleType==stLin)
-      fMouseX=xAxis.scaleMin*xAxis.scaleFactor+netMouseP.x()/ratio.x;
+      fMouseX=xAxis.scaleMin*xAxis.scaleFactor+netMouseP.x()/xAxis.pixPerValue ;
   else
     //In questo caso devo tener conto del logaritmo per la costruzione del grafico,
     // e posso omettere ScaleFactor che è sempre unitario:
-    fMouseX=powf(10,xAxis.eMin+netMouseP.x()/ratio.x);
+    fMouseX=powf(10,xAxis.eMin+netMouseP.x()/xAxis.pixPerValue );
   //Può capitare che il cursore del mouse sia fuori della zona in cui ci sono grafici.
   //In tal caso riporto dentro il valore di fCusorX:
 //  fMouseX=min(fMouseX,xmM.Max);
@@ -2324,17 +2482,17 @@ int CLineChart::giveNearValue(QPoint mouseP , QPoint &nearP, QPointF &valueP){
 
    //fase 1a):
   if(xAxis.scaleType==stLin)
-    nearX=int(X0+ratio.x*(px[0][0] - xAxis.scaleMin* xAxis.scaleFactor));
+    nearX=int(X0+xAxis.pixPerValue *(px[0][0] - xAxis.scaleMin* xAxis.scaleFactor));
   else
-    nearX=int(X0+ratio.x*log10f(px[0][0]/xAxis.scaleMin));
+    nearX=int(X0+xAxis.pixPerValue *log10f(px[0][0]/xAxis.scaleMin));
   if(yAxis.scaleType==stLin)
-    nearY=int(Y1-ratio.y*(py[0][0][0] - yAxis.scaleMin* yAxis.scaleFactor));
+    nearY=int(Y1-yAxis.pixPerValue *(py[0][0][0] - yAxis.scaleMin* yAxis.scaleFactor));
   else
-    nearY=int(Y1-ratio.y*log10f(py[0][0][0]/yAxis.scaleMin));
+    nearY=int(Y1-yAxis.pixPerValue *log10f(py[0][0][0]/yAxis.scaleMin));
 
   nearP=QPoint(nearX,nearY);
   valueP=QPoint(int(px[0][0]), int(py[0][0][0]));
-  rightScale=lCurveParam[0].rightScale;
+  rightScale=curveParamLst[0].rightScale;
 
   //fase 1b):
   int iTotPlot=-1;
@@ -2343,14 +2501,12 @@ int CLineChart::giveNearValue(QPoint mouseP , QPoint &nearP, QPointF &valueP){
     /* Prima di tutto trovo index che è l'indice del valore sull'asse x più vicino al cursore*/
     if(filesInfo[iFile].variableStep){
       indexSX=qMax(0,pixelToIndexDX[VSFile][netMouseP.x()]-1);
-      deltaX=px[iFile][indexSX+1]-px[iFile][indexSX];
       if(fMouseX-px[iFile][indexSX]<px[iFile][indexSX+1]-fMouseX)
         index=indexSX;
       else
         index=indexSX+1;
     }else{
       deltaX=px[iFile][1]-px[iFile][0];
-      indexSX=int((fMouseX-px[iFile][0])/deltaX);
       index=NearInt((fMouseX-px[iFile][0])/deltaX);
       //Può accadere che fra l'ultimo e il penultimo punto non si abbia la stessa distanza
       //che fra gli altri. Questo perché se Tmax supera TOld+DeltaT, vengono registrati
@@ -2361,26 +2517,31 @@ int CLineChart::giveNearValue(QPoint mouseP , QPoint &nearP, QPointF &valueP){
     }
     // index trovato!
 
+    //La seguente condizione non si dovrebbe mai verificare. Ma siccome è stato visto che questo in rarissimi casi accade, al fine di facilitare il debug metto il seguente check, comodo per mettere un breakpoiont su badIndex=true;
+    bool badIndex=false;
+    if(index>=nPoints)
+        badIndex=true;
+
     //Ora scelgo per il file corrente il punto più vicino verticalmente al cursore
     if(xAxis.scaleType==stLin)
-      nearX=X0+margin+int(ratio.x*(px[iFile][index] - xAxis.scaleMin* xAxis.scaleFactor));
+      nearX=X0+margin+int(xAxis.pixPerValue *(px[iFile][index] - xAxis.scaleMin* xAxis.scaleFactor));
     else
-      nearX=X0+margin+int(ratio.x*log10f(px[iFile][index]/xAxis.scaleMin));
+      nearX=X0+margin+int(xAxis.pixPerValue *log10f(px[iFile][index]/xAxis.scaleMin));
 
     for (int iVar=0; iVar<nPlots[iFile] ; iVar++){
       iTotPlot++;
       float vAxisRatio;
-      if(lCurveParam[iTotPlot].rightScale){
-          vAxisRatio= ratio.ry;
+      if(curveParamLst[iTotPlot].rightScale){
+          vAxisRatio= ryAxis.pixPerValue ;
       }else{
-          vAxisRatio= ratio.y;
+          vAxisRatio= yAxis.pixPerValue ;
       }
 
-      if(yAxis.scaleType==stLin &&lCurveParam[iTotPlot].rightScale){
+      if(yAxis.scaleType==stLin &&curveParamLst[iTotPlot].rightScale){
         symin=ryAxis.minF;
-      }else if(yAxis.scaleType!=stLin &&  lCurveParam[iTotPlot].rightScale){
+      }else if(yAxis.scaleType!=stLin &&  curveParamLst[iTotPlot].rightScale){
         symin=ryAxis.eMin;
-      }else if(yAxis.scaleType==stLin && !lCurveParam[iTotPlot].rightScale){
+      }else if(yAxis.scaleType==stLin && !curveParamLst[iTotPlot].rightScale){
         symin=yAxis.minF;
       }else{
         symin=yAxis.eMin;
@@ -2394,7 +2555,7 @@ int CLineChart::giveNearValue(QPoint mouseP , QPoint &nearP, QPointF &valueP){
       if( abs(nearY-mouseP.y()) < abs(nearP.y()-mouseP.y()) ){
          valueP=tempValueP;
          nearP=QPoint(nearX,nearY);
-         rightScale=lCurveParam[iTotPlot].rightScale;
+         rightScale=curveParamLst[iTotPlot].rightScale;
       }
     }
 
@@ -2417,26 +2578,26 @@ SFloatRect2 CLineChart::giveZoomRect(int StartSelX, int StartSelY, int X, int Y)
     SFloatRect2 R;
 
     if(xAxis.scaleType==stLin){
-        R.Left=xAxis.scaleMin*xAxis.scaleFactor+qMax(StartSelX-X0,0)/ratio.x;
-        R.Right=xAxis.scaleMin*xAxis.scaleFactor+qMin(X-X0,xAxis.width)/ratio.x;
+        R.Left=xAxis.scaleMin*xAxis.scaleFactor+qMax(StartSelX-X0,0)/xAxis.pixPerValue ;
+        R.Right=xAxis.scaleMin*xAxis.scaleFactor+qMin(X-X0,xAxis.widthPix)/xAxis.pixPerValue ;
     }else{
         //In questo caso devo tener conto del logaritmo per la costruzione del grafico,
         // e posso omettere ScaleFactor che è sempre unitario:
-        R.Left= powf(10,xAxis.eMin+qMax(StartSelX-X0,0)/ratio.x);
-        R.Right=powf(10,xAxis.eMin+qMin(X-X0,xAxis.width)/ratio.x);
+        R.Left= powf(10,xAxis.eMin+qMax(StartSelX-X0,0)/xAxis.pixPerValue );
+        R.Right=powf(10,xAxis.eMin+qMin(X-X0,xAxis.widthPix)/xAxis.pixPerValue );
     }
     if(yAxis.scaleType==stLin){
-        R.LBottom=yAxis.scaleMin*yAxis.scaleFactor+qMax(Y1-Y,0)/ratio.y;
-        R.LTop=   yAxis.scaleMin*yAxis.scaleFactor+qMin(Y1-StartSelY,yAxis.width) /ratio.y;
+        R.LBottom=yAxis.scaleMin*yAxis.scaleFactor+qMax(Y1-Y,0)/yAxis.pixPerValue ;
+        R.LTop=   yAxis.scaleMin*yAxis.scaleFactor+qMin(Y1-StartSelY,yAxis.widthPix) /yAxis.pixPerValue ;
   }else{
         //In questo caso devo tener conto del logaritmo per la costruzione del grafico,
         // e posso omettere ScaleFactor che è sempre unitario:
-        R.LBottom=powf(10,yAxis.eMin+qMax(Y1-Y,0)/ratio.y);
-        R.LTop=   powf(10,yAxis.eMin+qMin(Y1-StartSelY,yAxis.width)/ratio.y);
+        R.LBottom=powf(10,yAxis.eMin+qMax(Y1-Y,0)/yAxis.pixPerValue );
+        R.LTop=   powf(10,yAxis.eMin+qMin(Y1-StartSelY,yAxis.widthPix)/yAxis.pixPerValue );
   }
     if(twinScale){
-        R.RBottom=ryAxis.scaleMin*ryAxis.scaleFactor+qMax(Y0+yAxis.width-Y,0)/ratio.ry;
-        R.RTop=ryAxis.scaleMin*ryAxis.scaleFactor+qMin(Y0+yAxis.width-StartSelY,yAxis.width) /ratio.ry;
+        R.RBottom=ryAxis.scaleMin*ryAxis.scaleFactor+qMax(Y0+yAxis.widthPix-Y,0)/ryAxis.pixPerValue ;
+        R.RTop=ryAxis.scaleMin*ryAxis.scaleFactor+qMin(Y0+yAxis.widthPix-StartSelY,yAxis.widthPix) /ryAxis.pixPerValue ;
     }
     return R;
 }
@@ -2497,10 +2658,10 @@ void CLineChart::mouseMoveEvent(QMouseEvent *event)
 2) nella seconda gestisce la selezione dell'area di zoom
 3) nella terza gestisce i cursori di dati
 */
-    int nearX;
-    static SXYValues values;
-    int posX=event->pos().x();
-if(dataCursDragging)
+  int nearX;
+  static SXYValues values;
+  int posX=event->pos().x();
+  if(dataCursDragging)
     hovVarRect=QRect(0,0,0,0);
     //La seguente sezione 1 è stata trasferita all'interno della funzione event (che cestisce anche lo snap to grid)
     /*
@@ -2519,12 +2680,12 @@ if(dataCursDragging)
  */
 
 //2) selezione dell'area di zoom
-    if(zoomSelecting){  //sono in fase di selezione del rettangolo di zoom
-      //endPos è la posizione finale per il rettangolo delle zoomate
-      endZoomRectPos=event->pos();
-      update();
-      return;
-    }
+  if(zoomSelecting){  //sono in fase di selezione del rettangolo di zoom
+    //endPos è la posizione finale per il rettangolo delle zoomate
+    endZoomRectPos=event->pos();
+    update();
+    return;
+  }
 
 //3) gestione dei cursori di dati
    //A questo punto non sto selezionando il rettangolo di zoom. Adesso se sono in un'azione di dataRectDragging aggiorno i valori numerici e la posizione del cursore dati; altrimenti valuto se il mouse è nel raggio di azione di uno dei tre cursori dati. La cosa viene ripetuta tre volte, una per ogni cursore dati.
@@ -2569,7 +2730,7 @@ if(dataCursDragging)
         }
       }
     } else{
-        ;
+
     }
     update();
 }
@@ -2608,10 +2769,12 @@ Questo per me è inaccettabile. Meglio lasciare un titolo bianco, che è quello 
 void CLineChart::mousePressEvent(QMouseEvent *event){
 /* Quando mi sposto con il mouse, se entro nel raggio d'azione di un dataCursor il puntatore del mouse diviene la doppia freccetta orizontale ed un eventuale click aggancia il dataCursor attivo alla posizione del mouse.
 Questo aggancio viene comandato nella funzione mouseMoveEvent(), attraverso la selezione del valore opportuno per la variabile dataCursSelecting, la quale vale 0 se quando non siamo nel raggio d'azione di alcun cursore dati, altrimenti vale il numero del cursore dati: 1 per quello base, 2 per quello con le differenze.
-
   Pertanto la routine ha un comportamento che va distinto in funzione del valore della variabile dataCursSelecting.
-
 */
+    /* Il seguente emit serve per evitare che se l'utente clicca nell'area LineChart di una PlotWin, dopo i primi click, non avviene più lo switch automatico della tab. Infatti l'evento focusInEvent, si attiva solo se il click avviene sulla riga di intestazione della finestra plotWIN,  o la prima volta che si clicca sull'area di LineChart. Le volte successive non si attiva; per fare lo switch della tab anche in questo caso, catturo dentro LineChart il comando mousePressEvent():
+*/
+
+    emit chartClickedOn();
     int Ret=0, x1=event->pos().x()-1;
 
     if(dataCursSelecting>0){  //sono nel raggio d'azione di un qualche cursore dati
@@ -2746,12 +2909,12 @@ void  CLineChart::drawAllLabelsAndGrid(SAxis axis){
    - etichette numeriche ("numLabels")
    - etichette di asse ("axisLabel")
    - griglia
-   Da Ago 2017 è presente una funzione che rinuove la penultima label numerica se non cvi è sfficiente spazio perscrivere l'unità di misura o, più probabilem,la potenza di 10. E'una rimozione che si fa solo se il problema si verifica lungo l'asse x. Quando si fa questo si fa removeOneLbl=true.
+   Da Ago 2017 è presente una funzione che rinuove la penultima label numerica se non vi è sufficiente spazio per scrivere l'unità di misura o, più probabile,la potenza di 10. E'una rimozione che si fa solo se il problema si verifica lungo l'asse x. Quando si fa questo si fa removeOneLbl=true.
 
  */
   bool removeOneNumLbl=false;
   int x, y, ticCount, yy;
-  float xf, yf, ticInterval;
+  float xf, yf;
   float auxF;
   //char num[10], * format="%.1f";
   QString numStr;
@@ -2773,11 +2936,6 @@ void  CLineChart::drawAllLabelsAndGrid(SAxis axis){
     if(axis.type==atX){
       initialPix=Y0;
       finalPix=Y1;
-      if(axis.scaleMin*axis.scaleMax>0)
-        zeroPosition=-1;
-      else{
-        zeroPosition=NearInt(-axis.scaleMin/(axis.scaleMax-axis.scaleMin)*(X1-X0)+X0);
-      }
     }else{
       initialPix=X0;
       finalPix=X1;
@@ -2795,80 +2953,76 @@ void  CLineChart::drawAllLabelsAndGrid(SAxis axis){
     // Tacche e numeri.
     //Per prima cosa vedo se devo rimuovere una tacca.
     int axisLabelLen=writeAxisLabel(0,0,axis,true);
-    //rimuovo euristicamente la tacca se lla larghezza di ticinterval.x non è almeno pari alla larghezza in pixel della aaxislabel aumentata del 50%. Altrimento divrei fare calcolimolto articolati per un fatto tutto sommato secondario.
-    if(axisLabelLen*1.5f>ticInterv.x)
+    //rimuovo euristicamente la tacca se la larghezza di ticinterval.x non è almeno pari alla larghezza in pixel della axislabel aumentata del 50%. Altrimento dovrei fare calcoli molto articolati per un fatto tutto sommato secondario.
+    if(axisLabelLen*1.5f>axis.ticIntervalPix)
       removeOneNumLbl=true;
 
     myPainter->setPen(txtPen);
     ticCount=0;  //vale 0 per le tacche dotate di label numerica, 1 per le tacche prive di essa
     // Il seguente margin è diverso da 0 solo per i diagrammi a barre
     for(x=X0+margin, auxF=X0+margin, xf=xAxis.scaleMin; x<=X1-margin;
-            auxF+=ticInterv.x, x=NearInt(auxF), xf+=xAxis.ticInterval) {
-      ticPath.moveTo(x,yAxis.width+Y0+1);
-      ticPath.lineTo(x,yAxis.width+Y0+ticWidth.x()+1);
+            auxF+=axis.ticIntervalPix, x=NearInt(auxF), xf+=xAxis.ticInterval) {
+      ticPath.moveTo(x,yAxis.widthPix+Y0+1);
+      ticPath.lineTo(x,yAxis.widthPix+Y0+xAxis.ticPixWidth+1);
       numStr=QString::number(double(xf),'g',4);
       if(ticCount/2*2==ticCount){
-        //Scrivo la tacca numerica, omettendola se c'è poco spazio per la label di asse e sto scrivendo la penultima tacca.  Individuo che si tratta della penultima tacca con la condizione che la x è compresa fra X1-margin-1.5*ticinterv.y e X1-Margin-0.5*ticinterv.x
+        //Scrivo la label numerica, omettendola se c'è poco spazio per la label di asse e sto scrivendo la penultima tacca.  Individuo che si tratta della penultima tacca con la condizione che la x è compresa fra X1-margin-1.5*aXis.ticIntervalPix.y e X1-Margin-0.5*aXis.ticIntervalPix.x
         if (!removeOneNumLbl)
-          drawText2(x,Y1+ticWidth.x(),atCenter,atLeft,numStr,"",false,false);
-        if(removeOneNumLbl && (x<X1-margin-1.5f*ticInterv.x || x>X1-margin-0.5f*ticInterv.x))
-          drawText2(x,Y1+ticWidth.x(),atCenter,atLeft,numStr,"",false,false);
+          writeText2(myPainter,x,Y1+xAxis.ticPixWidth,atCenter,atLeft,numStr,"",false,false);
+        if(removeOneNumLbl &&
+              (x<X1-margin-1.5f*axis.ticIntervalPix || x>X1-margin-0.5f*axis.ticIntervalPix))
+          writeText2(myPainter,x,Y1+xAxis.ticPixWidth,atCenter,atLeft,numStr,"",false,false);
       }
       if(xAxis.halfTicNum)ticCount++;
     }
-
-
     // ***
-    // Ora scrittura della label di asse
+    // Ora scrittura della label di asse X
     //La seguente riga mette la label di asse al centro fra due tic, se non sono in halfTicNum, nel qual caso viene spostata un poco a sinistra ma non tanto da sembrare posta proprio in corrispondenza della "halftic".
-    int xAxisLabelx=X1-int((0.5f+0.1f*xAxis.halfTicNum)*ticInterv.x);
+    int xAxisLabelx=X1-int((0.5f+0.1f*xAxis.halfTicNum)*axis.ticIntervalPix);
     if(removeOneNumLbl)
-        xAxisLabelx-=ticInterv.x/2;
-    writeAxisLabel(xAxisLabelx, Y1+ticWidth.x(),xAxis,false);
+        xAxisLabelx-=int(axis.ticIntervalPix/2.f);
+    writeAxisLabel(xAxisLabelx, Y1+xAxis.ticPixWidth,xAxis,false);
     //Eventuale griglia:
-    for(auxF=ticInterv.x, x=NearInt(auxF); x<xAxis.width-1;	auxF+=ticInterv.x, x=NearInt(auxF)) {
+    for(auxF=axis.ticIntervalPix, x=NearInt(auxF); x<xAxis.widthPix-1;
+             auxF+=axis.ticIntervalPix, x=NearInt(auxF)) {
       if(xGrid) {
         gridPath.moveTo(x+X0,Y0);
-        gridPath.lineTo(x+X0,Y0+yAxis.width);
+        gridPath.lineTo(x+X0,Y0+yAxis.widthPix);
       }
     }
   } else {   // *******  Casi assi atYL e atYR
     // Tacche e label numeriche:
-    if(axis.type==atYR){
-      ticInterval=ticInterv.ry;
-    }else{
-      ticInterval=ticInterv.y;
-    }
     ticCount=0;
-     for(y=yAxis.width+Y0, auxF=float(yAxis.width+Y0),  yf=axis.scaleMin; y>=Y0-2;
-               auxF-=ticInterval, y=NearInt(auxF), yf+=axis.ticInterval)   	  {
+     for(y=yAxis.widthPix+Y0, auxF=float(yAxis.widthPix+Y0),  yf=axis.scaleMin; y>=Y0-2;
+               auxF-=axis.ticIntervalPix , y=NearInt(auxF), yf+=axis.ticInterval)   	  {
       if(axis.type==atYR){ //caso di scala destra
         ticPath.moveTo(X1+1,y);
-        ticPath.lineTo(X1+1+ticWidth.y(),y);
+        ticPath.lineTo(X1+1+yAxis.ticPixWidth,y);
       }else{
          ticPath.moveTo(X0-1,y);
-         ticPath.lineTo(X0-1-ticWidth.y(),y);
+         ticPath.lineTo(X0-1-yAxis.ticPixWidth,y);
       }
       if(fontSizeType==fsFixed) myPainter->setFont(QFont(baseFontName,fixedFontPx));
        numStr=QString::number(double(yf),'f',axis.ticDecimals);
        if(ticCount/2*2==ticCount){
         if(axis.type==atYR){
-          drawText2(X1+ticWidth.y(),y,atLeft,atCenter,numStr,"",false,false);
+          writeText2(myPainter,X1+yAxis.ticPixWidth,y,atLeft,atCenter,numStr,"",false,false);
         }else{
-          drawText2(X0-ticWidth.y()+1,y,atRight,atCenter,numStr,"",false,false);
+          writeText2(myPainter,X0-yAxis.ticPixWidth+1,y,atRight,atCenter,numStr,"",false,false);
         }
       }
       if(axis.halfTicNum)ticCount++;
     }
-    // Labels di asse:
+    // ***
+    // Labels di asse (YL e YR):
     if(axis.halfTicNum)
-      yy=Y0+int(0.9f*ticInterval);
+      yy=Y0+int(0.9f*axis.ticIntervalPix);
     else
-      yy=Y0+int(0.5f*ticInterval);
+      yy=Y0+int(0.5f*axis.ticIntervalPix);
 //    if(axis.type==atYR)
-//      writeAxisLabel(X1+0.5*(1+axis.halfTicNum)*ticWidth.y() ,yy, axis,false);
+//      writeAxisLabel(X1+0.5*(1+axis.halfTicNum)*yAxis.ticPixWidth ,yy, axis,false);
 //    else{
-//      writeAxisLabel(X0-0.5*(1+axis.halfTicNum)*ticWidth.y() , yy, axis,false);
+//      writeAxisLabel(X0-0.5*(1+axis.halfTicNum)*yAxis.ticPixWidth , yy, axis,false);
 //    }
     if(axis.type==atYR)
       writeAxisLabel((width()+X1)/2, yy, axis,false);
@@ -2877,9 +3031,9 @@ void  CLineChart::drawAllLabelsAndGrid(SAxis axis){
     }
     //eventuale griglia (solo per la scala di sinistra)
     if(yGrid && axis.type!=atYR){
-      for(y=yAxis.width+Y0, auxF=float(yAxis.width+Y0),  yf=axis.scaleMin; y>=Y0;
-      auxF-=ticInterv.y, y=NearInt(auxF), yf+=axis.ticInterval) {
-        if(y!=yAxis.width+Y0 && y!=Y0) {
+      for(y=yAxis.widthPix+Y0, auxF=float(yAxis.widthPix+Y0),  yf=axis.scaleMin; y>=Y0;
+      auxF-=axis.ticIntervalPix, y=NearInt(auxF), yf+=axis.ticInterval) {
+        if(y!=yAxis.widthPix+Y0 && y!=Y0) {
           gridPath.moveTo(X0,y);
 //          gridPath.lineTo(X0+xAxis.width-2,y);
           gridPath.lineTo(X1,y);
@@ -2931,7 +3085,7 @@ void  CLineChart::drawAllLabelsAndGridDB(SAxis axis){
   switch(numTicType){
     case 1:
       DBStep=20.f*(axis.eMax-axis.eMin);
-      axis.ticInterval=axis.width;
+      axis.ticInterval=axis.widthPix;
       pos[1]=pos1;
       numTics=2;
       break;
@@ -2963,23 +3117,23 @@ void  CLineChart::drawAllLabelsAndGridDB(SAxis axis){
     // Tacche:
     if(axis.type==atX){
       ticPath.moveTo(pos[i],Y1+1);
-      ticPath.lineTo(pos[i],Y1+ticWidth.x());
+      ticPath.lineTo(pos[i],Y1+xAxis.ticPixWidth);
     }else if(axis.type==atYL){
       ticPath.moveTo(X0,pos[i]);
-      ticPath.lineTo(X0-ticWidth.y(),pos[i]);
+      ticPath.lineTo(X0-yAxis.ticPixWidth,pos[i]);
     }else{
       ticPath.moveTo(X1,pos[i]);
-      ticPath.lineTo(X1-ticWidth.y(),pos[i]);
+      ticPath.lineTo(X1-yAxis.ticPixWidth,pos[i]);
     }
     value=value0+i*DBStep;
     sprintf(num,"%.0f",double(value));
     //Valore numerico:
     if(axis.type==atX){
-        drawText2(pos[i],Y1,atCenter,atLeft,num,"",false,false);
+        writeText2(myPainter,pos[i],Y1+xAxis.ticPixWidth,atCenter,atLeft,num,"",false,false);
     }else if(axis.type==atYL){
-        drawText2(X0-ticWidth.y()+1,pos[numTics-i-1],atRight,atCenter,num,"",false,false);
+        writeText2(myPainter,X0-yAxis.ticPixWidth+1,pos[numTics-i-1],atRight,atCenter,num,"",false,false);
     }else{
-        drawText2(X1+smallHSpace,  pos[numTics-i-1],atLeft,atCenter,num,"",false,false);
+        writeText2(myPainter,X1+smallHSpace,  pos[numTics-i-1],atLeft,atCenter,num,"",false,false);
     }
   }
   //eventuale griglia (asse y solo per la scala di sinistra)
@@ -3003,11 +3157,11 @@ void  CLineChart::drawAllLabelsAndGridDB(SAxis axis){
   //Label "dB":
   if(axis.type==atX){
     xx=X1-int(axis.ticInterval/2.0f);
-    yy=Y1+ticWidth.x();
+    yy=Y1+xAxis.ticPixWidth;
   }else{
     //Si ricordi che la label nel caso di assi sinistri (come questo) ha allineamento centrato.
     //L'eventualità che la label caschi in concidenza con un tick è trascurabile, quindi centro come se non vi fosse:
-    //xx=(X0-ticWidth.y())/2;
+    //xx=(X0-yAxis.ticPixWidth)/2;
     xx=X0/2;
     yy=pos0+int(axis.ticInterval/2.0f);
     if(numTicType==1)
@@ -3069,7 +3223,7 @@ void CLineChart::drawAllLabelsAndGridLog(SAxis axis){
   switch(numTicType){
    case 1:
       pos[1]=pos0;
-      decInterval=pos[0]-pos[1];
+//      decInterval=pos[0]-pos[1];
       break;
     case 2:
       decInterval= float(pos10+1)/(axis.eMax-axis.eMin);
@@ -3100,18 +3254,18 @@ void CLineChart::drawAllLabelsAndGridLog(SAxis axis){
     for(i=0; i<2; i++){
       if(axis.type==atX){
         ticPath.moveTo(pos[i],Y1);
-        ticPath.lineTo(pos[i],Y1+ticWidth.x());
-        drawText2(pos[i],Y0-ticWidth.x(),atCenter,atLeft,"10",num,false,false);
+        ticPath.lineTo(pos[i],Y1+xAxis.ticPixWidth);
+        writeText2(myPainter,pos[i],Y0-xAxis.ticPixWidth,atCenter,atLeft,"10",num,false,false);
       }else if(axis.type==atYL){
-        ticPath.moveTo(X0-ticWidth.y(),pos[i]);
+        ticPath.moveTo(X0-yAxis.ticPixWidth,pos[i]);
         ticPath.lineTo(X0+1,   pos[i]);
         sprintf(num,"%d",axis.eMin+i*(axis.eMax-axis.eMin));
-        drawText2(X0-ticWidth.y(),pos[i],atRight,atCenter,"10",num,false,false);
+        writeText2(myPainter,X0-yAxis.ticPixWidth,pos[i],atRight,atCenter,"10",num,false,false);
       }else{ //caso atYR
-        ticPath.moveTo(X1-ticWidth.y(),pos[i]);
+        ticPath.moveTo(X1-yAxis.ticPixWidth,pos[i]);
         ticPath.lineTo(X1,   pos[i]);
         sprintf(num,"%d",axis.eMin+i*(axis.eMax-axis.eMin));
-        drawText2(X1+smallHSpace,pos[i],atLeft,atCenter,"10",num,false,false);
+        writeText2(myPainter,X1+smallHSpace,pos[i],atLeft,atCenter,"10",num,false,false);
       }
     }
     break;
@@ -3119,20 +3273,20 @@ void CLineChart::drawAllLabelsAndGridLog(SAxis axis){
     for(dec=0; dec<=axis.eMax-axis.eMin; dec++){
       if(axis.type==atX){
         ticPath.moveTo(pos[dec],Y1);
-        ticPath.lineTo(pos[dec],Y1+ticWidth.x());
+        ticPath.lineTo(pos[dec],Y1+xAxis.ticPixWidth);
         if(xGrid && dec>0 && dec<axis.eMax-axis.eMin){
           gridPath.moveTo(pos[dec],Y0);
           gridPath.lineTo(pos[dec],Y1);
         }
         ticPath.moveTo(pos[dec],Y1);
-        ticPath.lineTo(pos[dec],Y1+ticWidth.x());
+        ticPath.lineTo(pos[dec],Y1+xAxis.ticPixWidth);
         sprintf(num,"%d",axis.eMin+dec);
-        drawText2(pos[dec],Y1+ticWidth.x(),atCenter,atLeft,"10",num,false,false);
+        writeText2(myPainter,pos[dec],Y1+xAxis.ticPixWidth,atCenter,atLeft,"10",num,false,false);
       }else if(axis.type==atYL){
-        ticPath.moveTo(X0-ticWidth.y(),pos[dec]);
+        ticPath.moveTo(X0-yAxis.ticPixWidth,pos[dec]);
         ticPath.lineTo(X0+1,   pos[dec]);
         sprintf(num,"%d",axis.eMin+dec);
-        drawText2(X0-ticWidth.y(),pos[dec],atRight,atCenter,"10",num,false,false);
+        writeText2(myPainter,X0-yAxis.ticPixWidth,pos[dec],atRight,atCenter,"10",num,false,false);
         if(yGrid && dec>0 && dec<axis.eMax-axis.eMin){
           //Non faccio la riga in corrispondenza della posizione 10^0 di diagrammi
           //a barre con scala verticale logaritmica per evitare che per errori di
@@ -3144,10 +3298,10 @@ void CLineChart::drawAllLabelsAndGridLog(SAxis axis){
           }
         }
       }else{ //caso atYR
-        ticPath.moveTo(X0-ticWidth.y(),pos[dec]);
+        ticPath.moveTo(X0-yAxis.ticPixWidth,pos[dec]);
         ticPath.lineTo(X0+1,   pos[dec]);
         sprintf(num,"%d",axis.eMin+dec);
-        drawText2(X1+smallHSpace,pos[dec],atLeft,atCenter,"10",num,false,false);
+        writeText2(myPainter,X1+smallHSpace,pos[dec],atLeft,atCenter,"10",num,false,false);
       }
    }
    break;
@@ -3156,16 +3310,16 @@ void CLineChart::drawAllLabelsAndGridLog(SAxis axis){
      sprintf(num,"%d",axis.eMin+dec);
      if(axis.type==atX){
        ticPath.moveTo(pos[5*dec],Y1);
-       ticPath.lineTo(pos[5*dec],Y1+ticWidth.x());
-       drawText2(pos[5*dec],Y1+ticWidth.x(),atCenter,atLeft,"10",num,false,false);
+       ticPath.lineTo(pos[5*dec],Y1+xAxis.ticPixWidth);
+       writeText2(myPainter,pos[5*dec],Y1+xAxis.ticPixWidth,atCenter,atLeft,"10",num,false,false);
      }else if(axis.type==atYL){
-       ticPath.moveTo(X0-ticWidth.y(),pos[5*dec]);
+       ticPath.moveTo(X0-yAxis.ticPixWidth,pos[5*dec]);
        ticPath.lineTo(X0+1,   pos[5*dec]);
-       drawText2(X0-ticWidth.y(),pos[5*dec],atRight,atCenter,"10",num,false,false);
+       writeText2(myPainter,X0-yAxis.ticPixWidth,pos[5*dec],atRight,atCenter,"10",num,false,false);
      } else{ //case atYR
-       ticPath.moveTo(X1-ticWidth.y(),pos[5*dec]);
+       ticPath.moveTo(X1-yAxis.ticPixWidth,pos[5*dec]);
        ticPath.lineTo(X1,   pos[5*dec]);
-       drawText2(X1+smallHSpace,pos[5*dec],atLeft,atCenter,"10",num,false,false);
+       writeText2(myPainter,X1+smallHSpace,pos[5*dec],atLeft,atCenter,"10",num,false,false);
      }
      for(tic=0; tic<5; tic++){
        if(dec==axis.eMax-axis.eMin)break;
@@ -3176,9 +3330,9 @@ void CLineChart::drawAllLabelsAndGridLog(SAxis axis){
              gridPath.lineTo(pos[5*dec+tic],Y1);
            }else{
              ticPath.moveTo(pos[5*dec+tic],Y0);
-             ticPath.lineTo(pos[5*dec+tic],Y0+ticWidth.x());
+             ticPath.lineTo(pos[5*dec+tic],Y0+xAxis.ticPixWidth);
              ticPath.moveTo(pos[5*dec+tic],Y1);
-             ticPath.lineTo(pos[5*dec+tic],Y1-ticWidth.x());
+             ticPath.lineTo(pos[5*dec+tic],Y1-xAxis.ticPixWidth);
            }
          }else if(axis.type==atYL){
            //a barre con scala verticale logaritmica per evitare che per errori di
@@ -3190,17 +3344,17 @@ void CLineChart::drawAllLabelsAndGridLog(SAxis axis){
                gridPath.lineTo(X1,pos[5*dec+tic]);
              }else{
                ticPath.moveTo(X0,pos[5*dec+tic]);
-               ticPath.lineTo(X0+ticWidth.y(),pos[5*dec+tic]);
+               ticPath.lineTo(X0+yAxis.ticPixWidth,pos[5*dec+tic]);
                if(!twinScale){
                  ticPath.moveTo(X1,pos[5*dec+tic]);
-                 ticPath.lineTo(X1-ticWidth.y(),pos[5*dec+tic]);
+                 ticPath.lineTo(X1-yAxis.ticPixWidth,pos[5*dec+tic]);
                }
              }
           }
         } else { //caso atYR
           if(tic!=0 || !(plotType==ptBar && axis.eMin+dec==0)){
             ticPath.moveTo(X1,pos[5*dec+tic]);
-            ticPath.lineTo(X1-ticWidth.y(),pos[5*dec+tic]);
+            ticPath.lineTo(X1-yAxis.ticPixWidth,pos[5*dec+tic]);
           }
         } //fine if(Axis.Type==atX)
       } //fine for(tic=0 ...
@@ -3257,7 +3411,8 @@ void CLineChart::paintEvent(QPaintEvent *ev)
 void CLineChart::copy(){
     QClipboard *clipboard = QApplication::clipboard();
     clipboard->setImage(*myImage);
-    QMessageBox::information(this,"CLineChart",tr("plot copied as an image into the system clipboard."));
+    if(showPlotCopiedDlg)
+      QMessageBox::information(this,"CLineChart","plot copied as an image into the system clipboard.");
 }
 
 QImage *  CLineChart::giveImage(){
@@ -3334,10 +3489,10 @@ void CLineChart::mark(bool store){
       QApplication::beep();
       return;
     }
-    //Traccio i marcatori sulle curve:
-    for(iFile=0; iFile<nFiles; iFile++){
-      for(iPlot=0; iPlot<nPlots[iFile]; iPlot++)	{
-        if(X>=xStartIndex[iFile] && X<xStopIndex[iFile]){
+  //Traccio i marcatori sulle curve:
+  for(iFile=0; iFile<nFiles; iFile++){
+    for(iPlot=0; iPlot<nPlots[iFile]; iPlot++)	{
+      if(X>=xStartIndex[iFile] && X<xStopIndex[iFile]){
         someMark=true;
         markSingle(iFile, iVSFile, iPlot, iTotPlot, store);
       }else if (store){
@@ -3397,7 +3552,7 @@ void CLineChart::markSingle(int iFile, int iVSFile, int iPlot, int iTotPlot, boo
 
     netCursorX=qMin(qMax(cursorX-X0,0),X1-X0);
 
-    fCursorX=xAxis.scaleMin*xAxis.scaleFactor+netCursorX/ratio.x;
+    fCursorX=xAxis.scaleMin*xAxis.scaleFactor+netCursorX/xAxis.pixPerValue ;
   if(filesInfo[iVSFile].variableStep )
     indexSX=qMax(0,pixelToIndexDX[iVSFile][netCursorX]-1);
   else{
@@ -3407,12 +3562,12 @@ void CLineChart::markSingle(int iFile, int iVSFile, int iPlot, int iTotPlot, boo
     if(cursorX<xStartIndex[iFile] || cursorX>=xStopIndex[iFile]){
     return;
   }
-  if(lCurveParam[iTotPlot].rightScale){
+  if(curveParamLst[iTotPlot].rightScale){
     yMinF=ryAxis.minF;
-    yRatio=ratio.ry;
+    yRatio=ryAxis.pixPerValue ;
   }else{
     yMinF=yAxis.minF;
-    yRatio=ratio.y;
+    yRatio=yAxis.pixPerValue ;
   }
   slope=(py[iFile][iPlot][indexSX+1]-py[iFile][iPlot][indexSX])/
                   (px[iFile][indexSX+1]-px[iFile][indexSX]); /*Slope=DeltaY/DeltaX:*/
@@ -3423,7 +3578,7 @@ void CLineChart::markSingle(int iFile, int iVSFile, int iPlot, int iTotPlot, boo
   yValue=py[iFile][iPlot][indexSX]+ slope*(fCursorX-px[iFile][indexSX]);
 
 
-  Y=Y0+yAxis.width-NearInt(yRatio*(yValue - yMinF));
+  Y=Y0+yAxis.widthPix-NearInt(yRatio*(yValue - yMinF));
   if(store){
     manuMarks.indexSX[iFile][manuMarks.lastMark]=indexSX;
     manuMarks.fraction[iFile][manuMarks.lastMark]=
@@ -3458,7 +3613,7 @@ void CLineChart::markAll(){
       }
     iTotPlot=0;
   }
-  yRatio=ratio.y;
+  yRatio=yAxis.pixPerValue ;
   for(i=0; i<nFiles; i++)
   for(iPlot=0; iPlot<nPlots[i]; iPlot++) {
     /* Ora traccio eventuali punti a posizione determinata manualmente.
@@ -3468,9 +3623,9 @@ void CLineChart::markAll(){
   memorizzazione è indipendente dalla Canvas del supporto di visualizzazione, e
   quindi può essere utilizzata senza conversioni per tracciare a stampa i marcatori.
     */
-    if(lCurveParam[iTotPlot].rightScale){
+    if(curveParamLst[iTotPlot].rightScale){
       yMinF=ryAxis.minF;
-      yRatio=ratio.ry;
+      yRatio=ryAxis.pixPerValue ;
     }else{
       yMinF=yAxis.minF;
     }
@@ -3484,8 +3639,8 @@ void CLineChart::markAll(){
         float yValue=py[i][iPlot][indexSX] + manuMarks.fraction[i][iMark]*Slope*(px[i][indexSX+1]-px[i][indexSX]);
         float xValue=px[i][indexSX] +
               manuMarks.fraction[i][iMark]*(px[i][indexSX+1]-px[i][indexSX]);
-        X=X0+NearInt(ratio.x * (xValue - xAxis.minF));
-        Y=Y0+yAxis.width-NearInt(yRatio*(yValue - yMinF));
+        X=X0+NearInt(xAxis.pixPerValue  * (xValue - xAxis.minF));
+        Y=Y0+yAxis.widthPix-NearInt(yRatio*(yValue - yMinF));
         drawMark(X,Y,iTotPlot,false);
       }
         iTotPlot++;
@@ -3513,18 +3668,18 @@ void CLineChart::markAuto(){
       //Traccio i marcatori vicino ai nomi delle variabili:
       drawMark(float(markPositions[iTotPlot].x()), float(markPositions[iTotPlot].y()), iTotPlot,true);
       indexRange=stopIndex[i]-startIndex[i];
-      if(lCurveParam[iTotPlot].rightScale){
+      if(curveParamLst[iTotPlot].rightScale){
         yMinF=ryAxis.minF;
-        yRatio=ratio.ry;
+        yRatio=ryAxis.pixPerValue ;
       }else{
         yMinF=yAxis.minF;
-        yRatio=ratio.y;
+        yRatio=yAxis.pixPerValue ;
       }
       //Traccio eventuali marcatori equispaziati in posizioni determinate automaticamente:
       if(filesInfo[i].variableStep  && xVarParam.isMonotonic){
         int xInitial, xFinal, stepX;
-        xInitial=X0+NearInt(ratio.x * (px[i][startIndex[i]] - xAxis.minF));
-        xFinal  =X0+NearInt(ratio.x * (px[i][stopIndex[i]]  - xAxis.minF));
+        xInitial=X0+NearInt(xAxis.pixPerValue  * (px[i][startIndex[i]] - xAxis.minF));
+        xFinal  =X0+NearInt(xAxis.pixPerValue  * (px[i][stopIndex[i]]  - xAxis.minF));
         stepX=(xFinal-xInitial)/MAXAUTOMARKS;
         X=X0+stepX/2;
         for(int ii=1; ii<=MAXAUTOMARKS; ii++){
@@ -3535,12 +3690,12 @@ void CLineChart::markAuto(){
       }else{
         for(int ii=1; ii<=MAXAUTOMARKS; ii++){
           if(xVarParam.isMonotonic)
-            deltaIndex=qMax(1,int(1.8f*markHalfWidth/ratio.x/(px[i][1]-px[i][0])));
+            deltaIndex=qMax(1,int(1.8f*markHalfWidth/xAxis.pixPerValue /(px[i][1]-px[i][0])));
           else
             deltaIndex=1;
           index=startIndex[i]+int(auxF*(ii-0.5f)*indexRange+deltaIndex*(iTotPlot-nFiles/2));
-          X=X0+NearInt(ratio.x * (px[i][index] - xAxis.minF));
-          Y=Y0+yAxis.width-NearInt(yRatio*(py[i][iPlot][index] - yMinF));
+          X=X0+NearInt(xAxis.pixPerValue  * (px[i][index] - xAxis.minF));
+          Y=Y0+yAxis.widthPix-NearInt(yRatio*(py[i][iPlot][index] - yMinF));
           drawMark(X+1,Y,iTotPlot,false); //il "+1" perché il dataCurs ha larghezza 3 e il valore è nel pixel centrale
         }
       }
@@ -3610,7 +3765,7 @@ QString CLineChart::plot(bool autoScale){
   resetMarkData();
   designPlot();
   lastAutoScale=autoScale;
-  iRet=0;
+//  iRet=0;
   if(autoScale){
     bool someLeftScale=false, someRightScale=false;
     /*Gestione eventuale scala destra. La metto se sono verificate due condizioni:
@@ -3620,7 +3775,7 @@ QString CLineChart::plot(bool autoScale){
     iTotPlot=0;
     for(i=0; i<nFiles; i++)
     for(icount=0; icount<nPlots[i]; icount++){
-      if(lCurveParam[iTotPlot].rightScale)
+      if(curveParamLst[iTotPlot].rightScale)
         someRightScale=true;
       else
         someLeftScale=true;
@@ -3635,7 +3790,7 @@ QString CLineChart::plot(bool autoScale){
         iTotPlot=0;
         for(i=0; i<nFiles; i++)
         for(icount=0; icount<nPlots[i]; icount++){
-          lCurveParam[iTotPlot].rightScale=false;
+          curveParamLst[iTotPlot].rightScale=false;
             iTotPlot++;
         }
       }
@@ -3650,7 +3805,6 @@ QString CLineChart::plot(bool autoScale){
   if(iRet==1)
   //Se iRet è diverso da 0 le cose non sono andate tutte a posto. Se è 1 è stato già emesso un messaggio d'errore; se è 2 è windowIsCut=true;
     return "";
-
 
   plotDone=true;
   return goPlot(false,false);
@@ -3710,12 +3864,10 @@ QString CLineChart::goPlot(bool Virtual, bool /*IncludeFO*/){
   if(PPlotPenWidth!=pwAuto){
     ticPen.setWidth(PPlotPenWidth+1); //se pwThin uso 1 pixel, se pwThick 2
     plotPen.setWidth(PPlotPenWidth+1);
-    framePen.setWidth(PPlotPenWidth+1);
   }else{  //Ora sono in spessore penna automatico
     //Si ricordi che il risultato della seguente divisione è troncato, non arrotondato.
-    ticPen.setWidth((plotRect.width()+plotRect.height())/500);
+    ticPen.setWidth(qMax(1,(plotRect.width()+plotRect.height())/1000));
     plotPen.setWidth(ticPen.width());
-    framePen.setWidth(plotPen.width());
   }
   if(cutsLimits){
     framePen.setWidth(qMax(plotPen.width(),3));
@@ -3755,27 +3907,27 @@ QString CLineChart::goPlot(bool Virtual, bool /*IncludeFO*/){
 
   myPainter->setPen(framePen);
   //Vertici rettangolo di visualizzazione (X0-X1-Y0-Y1):
-  X0=yAxis.maxTextWidth+int(1.5f*ticWidth.y())+smallHSpace;
+  X0=yAxis.maxTextWidth+int(1.5f*yAxis.ticPixWidth)+smallHSpace;
   if(makingSVG)X0+=svgOffset;
   if(printing)X0+=plotRect.x();
   //note:
   //- con questo X0 si lascia un margine bianco fisso di smallHSpace.
   //- Y0 è già stato calcolato più sopra!
 
-  //  X1=plotRect.width()-max(rYAxis.maxTextWidth+2.0*ticWidth.y()+1.2*smallHSpace, 0.65*xAxis.maxTextWidth);
+  //  X1=plotRect.width()-max(rYAxis.maxTextWidth+2.0*yAxis.ticPixWidth+1.2*smallHSpace, 0.65*xAxis.maxTextWidth);
   if(twinScale)
-     X1=plotRect.width()-qMax(ryAxis.maxTextWidth+ticWidth.y()+3*smallHSpace, xAxis.maxTextWidth);
+     X1=plotRect.width()-qMax(ryAxis.maxTextWidth+yAxis.ticPixWidth+3*smallHSpace, xAxis.maxTextWidth);
   else
-     X1=plotRect.width()-qMax(ticWidth.y()+3*smallHSpace, xAxis.maxTextWidth/2);
+     X1=plotRect.width()-qMax(yAxis.ticPixWidth+3*smallHSpace, xAxis.maxTextWidth/2);
 
   if(X1<=X0){
-    QMessageBox::critical(this,"","Critical error \"X1<X0\" in LineChart\n Program will be stopped");
+    QMessageBox::critical(this,"","Critical error \"X1<X0\" in LineChart.\nProgram will be stopped");
     qApp->closeAllWindows();
   }
-  Y1=plotRect.height()-legendHeight-textHeight-ticWidth.x()-2; //2 pixel fra la tacca e il numero
-  Y1-=smallHSpace*1.5; //un piccolo ulteriore spazio per allontanarmi dal bordo
+  Y1=plotRect.height()-legendHeight-textHeight-xAxis.ticPixWidth-2; //2 pixel fra la tacca e il numero
+  Y1-=int(smallHSpace*1.5); //un piccolo ulteriore spazio per allontanarmi dal bordo
   if(Y1<=Y0){
-    QMessageBox::critical(this,"","Critical error \"Y1<Y0\"LineChart\n Program will be stopped");
+    QMessageBox::critical(this,"","Critical error \"Y1<Y0\" in LineChart.\nProgram will be stopped");
     qApp->closeAllWindows();
   }
 
@@ -3837,27 +3989,27 @@ Se X, oltre che monotona crescente è anche costituita da campioni equispaziati 
   else
     margin=0;
   // ampiezza assi e intertacche
-  xAxis.width=X1-X0-2*margin;
-  yAxis.width=Y1-Y0;
+  xAxis.widthPix=X1-X0-2*margin;
+  yAxis.widthPix=Y1-Y0;
   if(xAxis.scaleType==stLin)
-    ratio.x= float(xAxis.width) / (xAxis.scaleMax-xAxis.scaleMin);
+    xAxis.pixPerValue= float(xAxis.widthPix) / (xAxis.scaleMax-xAxis.scaleMin);
   else
-    ratio.x= float(xAxis.width) / (xAxis.eMax-xAxis.eMin);
+    xAxis.pixPerValue= float(xAxis.widthPix) / (xAxis.eMax-xAxis.eMin);
   if(yAxis.scaleType==stLin)
-    ratio.y= float(yAxis.width) / (yAxis.scaleMax-yAxis.scaleMin);
+    yAxis.pixPerValue= float(yAxis.widthPix) / (yAxis.scaleMax-yAxis.scaleMin);
   else
-    ratio.y= float(yAxis.width) / (yAxis.eMax-yAxis.eMin);
-  ticInterv.x=   xAxis.ticInterval * ratio.x;
-  ticInterv.y=   yAxis.ticInterval * ratio.y;
-  ratio.x /= xAxis.scaleFactor;
-  ratio.y /= yAxis.scaleFactor;
+    yAxis.pixPerValue= float(yAxis.widthPix) / (yAxis.eMax-yAxis.eMin);
+  xAxis.ticIntervalPix=   xAxis.ticInterval * xAxis.pixPerValue;
+  yAxis.ticIntervalPix=   yAxis.ticInterval * yAxis.pixPerValue;
+  xAxis.pixPerValue /= xAxis.scaleFactor;
+  yAxis.pixPerValue /= yAxis.scaleFactor;
   if(twinScale){
     if(ryAxis.scaleType==stLin)
-      ratio.ry= float(yAxis.width) / (ryAxis.scaleMax-ryAxis.scaleMin);
+      ryAxis.pixPerValue= float(yAxis.widthPix) / (ryAxis.scaleMax-ryAxis.scaleMin);
     else
-      ratio.ry= float(yAxis.width) / (ryAxis.eMax-ryAxis.eMin);
-    ticInterv.ry=  ryAxis.ticInterval * ratio.ry;
-    ratio.ry /= ryAxis.scaleFactor;
+      ryAxis.pixPerValue= float(yAxis.widthPix) / (ryAxis.eMax-ryAxis.eMin);
+    ryAxis.ticIntervalPix=  ryAxis.ticInterval * ryAxis.pixPerValue;
+    ryAxis.pixPerValue /= ryAxis.scaleFactor;
   }
   if(numOfVSFiles>0){
     CLineChart::DeleteIMatrix(pixelToIndexDX);
@@ -3883,6 +4035,8 @@ Se X, oltre che monotona crescente è anche costituita da campioni equispaziati 
     case ptLine:
       if(drawType==dtMC)
         drawCurves(Virtual);
+      else if(drawType==dtMcD)
+        drawCurvesD(Virtual);
       else if(drawType==dtQtF)
         drawCurvesQtF(Virtual);
       else if(drawType==dtQtI)
@@ -4018,7 +4172,8 @@ QString CLineChart::print(QPrinter * printer, bool thinLines){
     QMessageBox::critical(this,"",ret);
     return ret;
   }
-  QRect prnRect=printer->pageRect();
+  QRect prnRect=printer->pageLayout().paintRectPixels(printer->resolution());
+
   if(prnRect.width()<20 || prnRect.height()<20 ){
     ret=tr("Unable to get valid information from the selected printer");
     QMessageBox::critical(this,"",ret);
@@ -4085,7 +4240,7 @@ void CLineChart::resizeStopped(){
     return;
   delete myPainter;
   delete myImage;
-  aspectRatio=float(r.height()/r.width());
+  aspectRatio=float(r.height())/float(r.width());
 
   myImage= new QImage(r.width(),r.height(),QImage::Format_RGB32);
 
@@ -4094,13 +4249,14 @@ void CLineChart::resizeStopped(){
 //  if(dataGot){
   if(plotDone){
     designPlot();
-//    if(cutsLimits)
-        dispRect=setFullDispRect();
+    if(cutsLimits)
+      dispRect=setFullDispRect();
     scaleXY(dispRect,false); //Ritocca il valore di DispRect appena fissato in seFullDispRect
     goPlot(false,false);
   }
   markAll();
   oldRect=r;
+  chartResizeStopped();
 }
 
 
@@ -4185,8 +4341,8 @@ Significato delle variabili passate (solo fino a maxVal sono usate per scale log
         msg="Cannot create a log scale on the y-axis\n"
             "because the range contains null or negative values\n\n"
             "Please change the variable to be plot, or the y-axis range or choose a linear scale";
-        QMessageBox::critical(this, "MC's PlotXWin",msg,QMessageBox::Ok);
-        return 1;
+      QMessageBox::critical(this, "MC's PlotXWin",msg,QMessageBox::Ok);
+      return 1;
     }
     sprintf(buffer,"%+10.3e",double(minVal));
     sscanf(buffer+7, "%u", &myAxis.eMin);
@@ -4203,20 +4359,20 @@ Significato delle variabili passate (solo fino a maxVal sono usate per scale log
     myAxis.scaleMax=powf(10.,myAxis.eMax);
     if(myAxis.scaleType==stDB){
       sprintf(buffer,"%d",20*myAxis.eMin);
-      myAxis.maxTextWidth=myPainter->fontMetrics().width(buffer);
+      myAxis.maxTextWidth=myPainter->fontMetrics().horizontalAdvance(buffer);
       sprintf(buffer,"%d",20*myAxis.eMax);
-      myAxis.maxTextWidth=qMax(myAxis.maxTextWidth, myPainter->fontMetrics().width(buffer));
+      myAxis.maxTextWidth=qMax(myAxis.maxTextWidth, myPainter->fontMetrics().horizontalAdvance(buffer));
       sprintf(buffer,"dB");
       if(useBrackets)
         sprintf(buffer,"(dB)");
-      myAxis.maxTextWidth=qMax(myAxis.maxTextWidth, myPainter->fontMetrics().width(buffer));
+      myAxis.maxTextWidth=qMax(myAxis.maxTextWidth, myPainter->fontMetrics().horizontalAdvance(buffer));
     }else{// myAxis.ScaleType=stLog
-        aux=myPainter->fontMetrics().width("10");
+        aux=myPainter->fontMetrics().horizontalAdvance("10");
       sprintf(buffer,"%d",myAxis.eMin);
       myPainter->setFont(expFont);
-      myAxis.maxTextWidth=aux+myPainter->fontMetrics().width(buffer);
+      myAxis.maxTextWidth=aux+myPainter->fontMetrics().horizontalAdvance(buffer);
       sprintf(buffer,"%d",myAxis.eMax);
-      aux+=myPainter->fontMetrics().width(buffer);
+      aux+=myPainter->fontMetrics().horizontalAdvance(buffer);
       myAxis.maxTextWidth=qMax(myAxis.maxTextWidth,aux);
       myPainter->setFont(numFont);
     }
@@ -4359,7 +4515,8 @@ Significato delle variabili passate (solo fino a maxVal sono usate per scale log
     sprintf(buffer,"%+10.3e",double(Min.roundValue));
     sscanf(buffer+3, "%1u", &irmn2);
     ntic=computeTic(Min.roundValue,Max.roundValue,minTic);
-    if(ntic==minTic)myAxis.halfTicNum=true;
+    if(ntic==minTic)
+      myAxis.halfTicNum=true;
   }
   /* Distanza tra le tacche: */
   myAxis.ticInterval= (myAxis.scaleMax-myAxis.scaleMin) / (float(ntic)+1);
@@ -4381,11 +4538,22 @@ Significato delle variabili passate (solo fino a maxVal sono usate per scale log
   }
 
 ComputeScaleFactor:
+  /* Qui gestisco cutslimits. Questa variabile indica se gli estremi visuaizzati sono interni agli estremi effettivi. SIccome PlotXY opera in semplice recisione, questo è significativo solo se l'errore supera quanto rappresentbile entro la sesta cifra significativa. */
+  myAxis.cutsLimits=false;
+  if(myAxis.scaleMin>minVal)
+      if(minVal!=0)
+          if(qAbs((myAxis.scaleMin-minVal)/minVal)>float(1.e-6))
+              myAxis.cutsLimits=true;
+  if(myAxis.scaleMax<maxVal)
+      if(maxVal!=0)
+          if(qAbs((myAxis.scaleMax-maxVal)/maxVal)>float(1.e-6))
+              myAxis.cutsLimits=true;
+/*
   if(myAxis.scaleMin>minVal||myAxis.scaleMax<maxVal)
     myAxis.cutsLimits=true;
   else
     myAxis.cutsLimits=false;
-
+*/
   /* Calcolo di eventuale fattore di scala:  */
   aux=iermx;
   if(Max.roundValue==0)
@@ -4415,9 +4583,9 @@ ComputeScaleFactor:
   sprintf(num,format,double(myAxis.scaleMax));
   sscanf(num,"%f",&YY);
   if(myAxis.done==0){
-    aux=myPainter->fontMetrics().width(num);
+    aux=myPainter->fontMetrics().horizontalAdvance(num);
     sprintf(num,format,double(myAxis.scaleMin));
-    aux=qMax(aux,myPainter->fontMetrics().width(num));
+    aux=qMax(aux,myPainter->fontMetrics().horizontalAdvance(num));
     goto Return;
   }
   aux=0;
@@ -4433,7 +4601,7 @@ ComputeScaleFactor:
     }
     sprintf(format+2,"%1df",qMax(myAxis.ticDecimals,0));
     sprintf(num,format,double(yf));
-    aux=qMax(aux,myPainter->fontMetrics().width(num));
+    aux=qMax(aux,myPainter->fontMetrics().horizontalAdvance(num));
     yf+=myAxis.ticInterval*(1+myAxis.halfTicNum);
     sprintf(num,format,double(yf));
     sscanf(num,"%f",&yy);
@@ -4447,7 +4615,7 @@ ComputeScaleFactor:
   if(myAxis.type==atX)
     myAxis.maxTextWidth=aux;
   else if(myAxis.type==atYL)
-    myAxis.maxTextWidth=qMax(aux,writeAxisLabel(0,0,myAxis,true)-ticWidth.y()* !myAxis.halfTicNum);
+    myAxis.maxTextWidth=qMax(aux,writeAxisLabel(0,0,myAxis,true)-yAxis.ticPixWidth* !myAxis.halfTicNum);
   else if(myAxis.type==atYR)
     myAxis.maxTextWidth=qMax(aux,writeAxisLabel(0,0,myAxis,true));
   else{
@@ -4480,11 +4648,16 @@ if(myAxis.done==2){
 
 
 //---------------------------------------------------------------------------
-int CLineChart::scaleXY(SFloatRect2 R, const bool justTic){
-/* Questa funzione serve per fare i calcoli delle scale sui due o tre assi.
-Riceve in ingresso una versione "grezza" di dispRect, con numeri non ancora tondi, e ne calcola una versione rifinita.
-
-  Durante l'esecuzione di un resize viene ugualmente cambiata, solo per ricalcolare il numero delle tacche (justTic=true).  Per ragioni di semplicità implementativa non propago la gestione di justTic anche a scalaAxis, anche se faccio fare un po' di calcoli inutili al programma.
+int CLineChart::scaleXY(SFloatRect2 & dispRect, const bool justTic){
+/*
+ * Questa funzione serve per fare i calcoli delle scale sui due o tre assi.
+ * Riceve in ingresso una versione "grezza" di dispRect, con numeri non ancora tondi,
+ * e ne calcola una versione rifinita.
+ *
+ * Durante l'esecuzione di un resize viene ugualmente cambiata, solo per ricalcolare
+ * il numero delle tacche (justTic=true).  Per ragioni di semplicità implementativa non
+ * propago la gestione di justTic anche a scalaAxis, anche se faccio fare un po' di
+ * calcoli inutili al programma.
 
   ***** CODICI DI RITORNO Ret
   - Ret =0 se è tutto OK
@@ -4493,6 +4666,7 @@ Riceve in ingresso una versione "grezza" di dispRect, con numeri non ancora tond
 */
   unsigned Include0=100*forceYZero;
   int ret;
+  SFloatRect2 R=dispRect;
 
   if(!justTic){
     ret =scaleAxis(xAxis, R.Left, R.Right, minXTic, Include0, exactMatch);
@@ -4518,7 +4692,7 @@ Riceve in ingresso una versione "grezza" di dispRect, con numeri non ancora tond
   }else
     ryAxis.maxTextWidth=0;
   if(xAxis.cutsLimits ||yAxis.cutsLimits ||
-            (ryAxis.cutsLimits&&twinScale))
+                          (ryAxis.cutsLimits&&twinScale))
     cutsLimits=true;
   else
     cutsLimits=false;
@@ -4594,7 +4768,7 @@ SFloatRect2 CLineChart::setFullDispRect(){
   for(i=0; i<nFiles; i++){
     for(int iPlot=0; iPlot<nPlots[i]; iPlot++){
       AuxmM=findMinMax(py[i][iPlot],filesInfo[i].numOfPoints);
-      if(lCurveParam[iTotPlot].rightScale){
+      if(curveParamLst[iTotPlot].rightScale){
         if(RmMInitialised){
           rYmM.Min=qMin(rYmM.Min,AuxmM.Min);
           rYmM.Max=qMax(rYmM.Max,AuxmM.Max);
@@ -4628,7 +4802,7 @@ SFloatRect2 CLineChart::setFullDispRect(){
 void CLineChart::setPlotPenWidth(EPlotPenWidth myWidth){
   PPlotPenWidth=myWidth;
   /* In linea di massima si potrebbe pensare di attribuire qui PPlotPenWidth a plotPen, ticPen, framePen. Il problema è che il valore passato non è sempre un numero fisso: nel caso sia pwAuto, dipenderà  dalle dimensioni della finestra. Di conseguenza sarebbe abbastanza inutile.
-Pertanto l'attribuzione dei valori effettivi degli spessori delle penne sarà  fatta all'inizio della funzione plot(bool, bool). */
+Pertanto l'attribuzione dei valori effettivi degli spessori delle penne sarà fatta all'inizio della funzione goPlot(bool, bool). */
 }
 
 void CLineChart::setXZeroLine(bool zeroLine_){
@@ -4655,7 +4829,13 @@ int CLineChart::writeAxisLabel(int X, int Y, SAxis &axis, bool _virtual ){
  * Si tratta di un'etichetta che può contenere una potenza di 10 (se necessaria per numeri
  * molto grandi o piccoli)  ovvero, fra parentesi, l'unità di misura con prefisso.
  * Se autoLabelXY=true, si usano le unità di misura attribuite alle variabili attraverso
- * xVarParam e curveParam e passate con getData()
+ * xVarParam e curveParam e passate con getData().
+ * Il valore locale AutolabelXY_ partedal valore della variabile globale del grafico,
+ * ma viene riconvertita in false se il numero è talmente piccolo o grande che non c'è un
+ * prefix adatto per rappresentarlo. Il set di 'prefix' che uso è minore di quello completo
+ * del SI, inquanto alcuni pprefissi quali yootto oyotta non li conosce nessuno e sono per
+ * me più dannosi che utili.
+ *
  * Naturalmente esse potranno essere usate solo se le unità relative ai vari plot del
  * medesimo asse sono uguali.
  * Se però useUserUnits=true, vengono usate le unità passate attraverso getUserUnits()
@@ -4669,7 +4849,7 @@ int CLineChart::writeAxisLabel(int X, int Y, SAxis &axis, bool _virtual ){
  * l'ampiezza della label, che viene ritornata dalla funzione.
  * Se Virtual=false il valore di ritorno è indeterminato.
  */
-  char prefix[]={'p','n','u','m','0','k','M','G','T'};
+  char prefix[]={'f','p','n','u','m','0','k','M','G','T','P'};
   int iTotPlot;
   EadjustType hAdjust, vAdjust;
   QString unitS=""; //E' l'unità di misura dell'asse corrente, valutata considerando i valori di autoLabelXY e useUserUnits (v. spiegazione inizio funzione).
@@ -4682,35 +4862,35 @@ int CLineChart::writeAxisLabel(int X, int Y, SAxis &axis, bool _virtual ){
      vAdjust=atLeft;
      break;
    case atYL:
-//     hAdjust=atRight;
      hAdjust=atCenter;
      vAdjust=atCenter;
      break;
    case atYR:
-//     hAdjust=atLeft;
      hAdjust=atCenter;
      vAdjust=atCenter;
      break;
- //  default:  //Serve solo per evitare un warning sull'inizializzazione di hAdjust e vAdjust
- //    hAdjust=atCenter;
- //    vAdjust=atLeft;
- //    break;
  }
 
  /***  Fase 2: Determino il comportamento sulla base delle tre variabili booleane
   * autoLabelXY, useUserUnits, useSmartUnits (dettagli in Developer.odt|Gestione delle
   * etichette di asse.
  ***/
-
+  bool autoLabelXY_=autoLabelXY;
  // 2.1: analizzo casi speciali
- if(!autoLabelXY && ! useUserUnits){
+ if(axis.scaleType==stDB){
+   unitS="dB";
+//   autoLabelXY_=false;  //Questa riga va commentata perché posso volere l'etichetta su uno degli assi e dB sull'altro, mentre autoLabelXY_ agisce su tutti gli assi
+   goto Escape;
+ }
+
+ if(!autoLabelXY_ && ! useUserUnits){
    unitS="";
    goto Escape;
  }
 
- if(abs(axis.scaleExponent)>12){  //caso speciale in cui decvo forzare l'uso delle potenze di 10
+ if(abs(axis.scaleExponent)>18){  //caso speciale in cui devo forzare l'uso delle potenze di 10
      useUserUnits=false;
-     autoLabelXY=false;
+     autoLabelXY_=false;
      unitS="";
      goto Escape;
  }
@@ -4722,18 +4902,21 @@ int CLineChart::writeAxisLabel(int X, int Y, SAxis &axis, bool _virtual ){
    }
    goto Escape;
  }
- if(axis.scaleType==stDB){
-   unitS="dB";
-   autoLabelXY=false;
-   goto Escape;
- }
 
  if(axis.scaleType==stLog){
    unitS="";
-   autoLabelXY=false;
+   autoLabelXY_=false;
    goto Escape;
  }
 
+ if(axis.scaleExponent/3+5<0){
+    autoLabelXY_=false;
+    goto Escape;
+ }
+ if(axis.scaleExponent/3+5>=int(sizeof(prefix))){
+    autoLabelXY_=false;
+    goto Escape;
+ }
 
 //2.2: info da file. Se arrivo qui devo interpretare le unità in funzione di informazioni prelevate da metadati o dal nome di variabile prelevati dal file di input
 if(axis.type==atX)
@@ -4741,18 +4924,18 @@ if(axis.type==atX)
   else{
     for(iTotPlot=0; iTotPlot<numOfTotPlots; iTotPlot++){
       //Se una curva non va graficata sull'asse corrente non la considero:
-      if(lCurveParam[iTotPlot].rightScale  && axis.type!=atYR) continue;
-      if(!lCurveParam[iTotPlot].rightScale && axis.type==atYR) continue;
+      if(curveParamLst[iTotPlot].rightScale  && axis.type!=atYR) continue;
+      if(!curveParamLst[iTotPlot].rightScale && axis.type==atYR) continue;
       //Se la variabile corrente ha unità indeterminata l'asse non potrà avere label testuale:
-      if(lCurveParam[iTotPlot].unitS==""){
+      if(curveParamLst[iTotPlot].unitS==""){
         unitS="";
         break;
       }
       // Tutte le variabili sul medesimo asse devono avere la stessa unità. Pertanto una volta definita la unit per una variabile dell'asse corrente anche le altre devono avere la stessa oppure non metto niente sull'asse.
-      //devo però tener conto della regola, illustrata anche in Tutorial, che non si mette come unità automatica "f" o "s" sugli assi y e yr. Questo perché si intende che il tempo e la frequenza di norma debbano stare sull'asse orizzontale e solo in casi particolari su quello verticale. Inoltre questo evita che in ATP tutte le variabili TACS prendano come unità "s"
-      if(unitS=="" && lCurveParam[iTotPlot].unitS!="s" && lCurveParam[iTotPlot].unitS!="Hz"){
-        unitS=lCurveParam[iTotPlot].unitS;
-      }else if(unitS!=lCurveParam[iTotPlot].unitS){
+      //devo però tener conto della regola, illustrata anche in Tutorial, che non si mette come unità automatica "s" sugli assi y e yr, anche per evitare he tutte le variabili TACS predano questa unità in modo improprio.
+      if(unitS=="" && curveParamLst[iTotPlot].unitS!="s"){
+        unitS=curveParamLst[iTotPlot].unitS;
+      }else if(unitS!=curveParamLst[iTotPlot].unitS){
         unitS="";
         break;
       }
@@ -4761,16 +4944,16 @@ if(axis.type==atX)
 
   /***  Fase 3: Determino nei vari casi base ed esponente (v. Developer.odt|Gestione
    * delle etichette di asse) ***/
-Escape:
 
-
-/* Si ha l'obiettivo di passare prima o poi all'uso dell'unica funzione smartDrawUnit(). Per ora vi sono ancora delle difficoltà nel calcolo delle spaziature, e quindi nel caso della sola potenza di 10 uso ancora il più vecchio drawText2.
-Notare che a drawText1 si passano separatamente base ed esponente, mentre in smartDrawUnit la potenza di 10 è automaticamente riconosciuta dalla presenza come primi tre caratteri di "*10"
-Per avere compatibilità ocn entrambe le funzioni uso tre variabili testuali: msgBase, msgExp e unitS. Quest'ultima contiene tutto assieme secondo la convenzione per smartDrawUnit
+/* Si ha l'obiettivo di passare prima o poi all'uso dell'unica funzione smartWriteUnit(). Per ora vi sono ancora delle difficoltà nel calcolo delle spaziature, e quindi nel caso della sola potenza di 10 uso ancora il più vecchio writeText2.
+Notare che a writeText2 si passano separatamente base ed esponente, mentre in smartWriteUnit la potenza di 10 è automaticamente riconosciuta dalla presenza come primi tre caratteri di "*10"
+Per avere compatibilità con entrambe le funzioni uso tre variabili testuali: msgBase, msgExp e unitS. Quest'ultima contiene tutto assieme secondo la convenzione per smartWriteUnit
 */
-
+Escape:
   QString msgBase="", msgExp="";
-  bool useWriteText2= (!autoLabelXY && !useUserUnits) || (useUserUnits && unitS=="");
+  bool useWriteText2= (!autoLabelXY_ && !useUserUnits) || (useUserUnits && unitS=="");
+  if(axis.scaleType==stDB)
+      useWriteText2=false; //necessario perché "dB" è in unitS che non è usato da writetext2()
   if(useWriteText2){
       if(axis.scaleExponent!=0){
         msgBase="10";
@@ -4780,30 +4963,30 @@ Per avere compatibilità ocn entrambe le funzioni uso tre variabili testuali: ms
           msgExp="";
       }
   }else{
-    if(prefix[axis.scaleExponent/3+4]!='0')
-      unitS.prepend(prefix[axis.scaleExponent/3+4]);
+    if(prefix[axis.scaleExponent/3+5]!='0' && axis.scaleType!=stDB)
+      unitS.prepend(prefix[axis.scaleExponent/3+5]);
   }
 
 //Write:
   // La gestione delle parentesi la faccio qui, in modo che agisce sia nel caso di labels automatiche che specificate manualmente dall'utente
   //Aggiustamenti DPI-aware tarati a Feb 2017:
-  if(axis.type==atX) Y+=1*onePixDPI;
+  if(axis.type==atX) Y+=int(1*onePixDPI);
   if(axis.type==atYL && axis.halfTicNum)
-      X-=ticWidth.y()-1*onePixDPI;
+      X-=int(yAxis.ticPixWidth-1*onePixDPI);
   if(axis.type==atYR && axis.halfTicNum)
-      X+=ticWidth.ry()-onePixDPI;
+      X+=int(ryAxis.ticPixWidth-onePixDPI);
   if(axis.type==atYR && !axis.halfTicNum)
-      X+=2*onePixDPI;
+      X+=int(2*onePixDPI);
 
-  /* Si ha l'obiettivo di passare prima o poi all'unica fuzione smartDrawUnit(). Per ora vi sono ancora delle difficoltà nel calcolo delle spaziature, e quindi nel caso della sola potenza di 10 uso ancora il più vecchio drawText2.
-Notare che a drawText1 si passano separatamente base ed esponente, mentre in smartDrawUnit la potenza di 10 è automaticamente riconosciuta dalla presenza come primi tre caratteri di "10*"
+  /* Si ha l'obiettivo di passare prima o poi all'unica fuzione smartWriteUnit(). Per ora vi sono ancora delle difficoltà nel calcolo delle spaziature, e quindi nel caso della sola potenza di 10 uso ancora il più vecchio drawText2.
+Notare che a drawText2 si passano separatamente base ed esponente, mentre in smartWriteUnit la potenza di 10 è automaticamente riconosciuta dalla presenza come primi tre caratteri di "10*"
 */
 
   if (useWriteText2){ //Caso residuo solo per le potenze di 10
-      qDebug()<<"Writing Axis Label through drawtext2 ";
-      return drawText2(X,Y,hAdjust,vAdjust,msgBase,msgExp,useBrackets, _virtual)+1;
+      //qDebug()<<"Writing Axis Label through drawtext2 ";
+      return writeText2(myPainter,X,Y,hAdjust,vAdjust,msgBase,msgExp,useBrackets, _virtual)+1;
   }else{  //caso in cui si possono usare lettere greche, puntini, esponenti
-    return smartDrawUnit(myPainter, baseFont, X,Y,hAdjust,vAdjust,unitS,useBrackets, _virtual)+1;
+    return smartWriteUnit(myPainter, baseFont, X,Y,hAdjust,vAdjust,unitS,useBrackets, _virtual)+1;
   }
 }
 
@@ -4849,42 +5032,55 @@ PER ENTRAMBI I CASI limito comunque la leggenda ad un massimo di 3 righe, rinunc
     yPosition=plotRect.y()+plotRect.height()-legendHeight+textHeight;
   if(legendHeight==-1)return;
   numRows=1;
+  // Uso la leggenda con il nome di file all'inizio sia nel caso in cui nFIles=1 che nel caso che ho function plots tutte riferite al medesimo file.
+  // per identificare la leggenda a file singolo invece di nFiles faccio un confronto dei nomi delle stringhe di file
+  bool oneFileName=nFiles==1;
+  if(nFiles>1){
+    oneFileName=true;
+    for (int i=0; i<nFiles; i++){
+//      QString dbgStr=filesInfo[i].name;
+      if(filesInfo[i].name!=filesInfo[0].name){
+        oneFileName=false;
+        break;
+      }
+    }
+  }
+
   //Nel seguente caso di nFiles=1 il medesimo codice serve per il calcolo delle dimensioni della leggenda e l'effettiva scrittura:
-  if(nFiles==1){
+  if(oneFileName){
     myPainter->setPen(Qt::black);
     msg="(file "+filesInfo[0].name + "; x-var "+xVarParam.name+")  ";
     if(!_virtual)myPainter->drawText(xPosition,yPosition,msg);
-    xPosition+=myPainter->fontMetrics().width(msg);
+    xPosition+=myPainter->fontMetrics().horizontalAdvance(msg);
     while(1){
       iTotPlot++;
       if(iTotPlot==numOfTotPlots)    break;
-      msg=lCurveParam[iTotPlot].name+"    ";
-      if(lCurveParam[iTotPlot].rightScale)
+      msg=curveParamLst[iTotPlot].name+"    ";
+      if(curveParamLst[iTotPlot].rightScale)
        lgdFont.setUnderline(true);
       else
         lgdFont.setUnderline(false);
       myPainter->setFont(lgdFont);
       if(!blackWhite)
-        myPainter->setPen(lCurveParam[iTotPlot].color);
+        myPainter->setPen(curveParamLst[iTotPlot].color);
       //Decido se devo andare a capo sulla base della stringa senza "    ", ma se poi scrivo metto la stringa con "    ":
-      if(xPosition+myPainter->fontMetrics().width(lCurveParam[iTotPlot].name)<plotRect.width()){
+      if(xPosition+myPainter->fontMetrics().horizontalAdvance(curveParamLst[iTotPlot].name)<plotRect.width()){
       if(!_virtual){
            myPainter->drawText(xPosition,yPosition,msg);
            struct SHoveringData hovData;
            hovData.rect=myPainter->boundingRect(xPosition,yPosition-textHeight,400,50,Qt::AlignLeft, msg);
            hovData.iTotPlot=iTotPlot;
            hovDataLst.append(hovData);
-           markerXPos=xPosition+myPainter->fontMetrics().width(lCurveParam[iTotPlot].name)+int(markHalfWidth)+1;
+           markerXPos=xPosition+myPainter->fontMetrics().horizontalAdvance(curveParamLst[iTotPlot].name)+int(markHalfWidth)+1;
            markerYPos=int(yPosition-0.8f*myPainter->fontMetrics().height()+int(markHalfWidth));
            //Posizione dei marcatori vicino ai rispettivi nomi sulla leggenda:
            markPositions[iTotPlot].setX(markerXPos);
            markPositions[iTotPlot].setY(markerYPos);
         }
-        xPosition+=myPainter->fontMetrics().width(msg);
+        xPosition+=myPainter->fontMetrics().horizontalAdvance(msg);
       }else{
         iTotPlot--;
         numRows++;
-        xPosition=0;
         yPosition+=textHeight;
         xPosition=0;
         if(numRows==4){
@@ -4897,7 +5093,7 @@ PER ENTRAMBI I CASI limito comunque la leggenda ad un massimo di 3 righe, rinunc
     return;
   }
   //Nel seguente caso di nFiles>1 il codice è organizzato su due passate e si fanno tutte con Virtual = false:
-  if(nFiles>1 && !_virtual){
+  if(!oneFileName && !_virtual){
     bool endBlock;
     int count=0, //generico contatore
     iRow, //indice della riga corrente
@@ -4906,6 +5102,7 @@ PER ENTRAMBI I CASI limito comunque la leggenda ad un massimo di 3 righe, rinunc
     iTotPlStartBlock; //indice globale di variabile di inizio blocco
     iRow=0;
     blocksPerRow[0]=blocksPerRow[1]=blocksPerRow[2]=0;
+    msg = "file";
     for(int iFile=0; iFile<nFiles; iFile++){
       endBlock=false;
       iTotPlStartBlock=iTotPlot;
@@ -4916,9 +5113,9 @@ PER ENTRAMBI I CASI limito comunque la leggenda ad un massimo di 3 righe, rinunc
         msg=msg+"  "+filesInfo[iFile].name+":  ";
       for(int iVar=0; iVar<nPlots[iFile]; iVar++){
         iTotPlot++;
-        msg=msg+lCurveParam[iTotPlot].name+"   ";
+        msg=msg+curveParamLst[iTotPlot].name+"   ";
  //Se sforo il fine riga tolgo il blocco corrente dalla riga corrente a meno che non sia l'unico blocco:
-        if(myPainter->fontMetrics().width(msg)>plotRect.width()){
+        if(myPainter->fontMetrics().horizontalAdvance(msg)>plotRect.width()){
           if(blocksPerRow[iRow]>1){
             blocksPerRow[iRow]--;
             iTotPlot=iTotPlStartBlock;
@@ -4963,27 +5160,27 @@ PER ENTRAMBI I CASI limito comunque la leggenda ad un massimo di 3 righe, rinunc
       }
       myPainter->setPen(Qt::black);
       if(xPosition==0)
-        msg=filesInfo[iFile].name+":  ";
+        msg="file "+filesInfo[iFile].name+":  ";
       else
-        msg="  "+filesInfo[iFile].name+":  ";
+        msg="  file "+ filesInfo[iFile].name+":  ";
       myPainter->drawText(xPosition,yPosition,msg);
       //Ora che ho scritto ad inizio riga il nome del file scrivo l'elenco delle corrispondenti variabili:
-      xPosition+=myPainter->fontMetrics().width(msg);
+      xPosition+=myPainter->fontMetrics().horizontalAdvance(msg);
       for(int iVar=0; iVar<nPlots[iFile]; iVar++){
         iTotPlot++;
         if(!blackWhite)
-          myPainter->setPen(lCurveParam[iTotPlot].color);
-        msg=lCurveParam[iTotPlot].name+"   ";
-        lgdFont.setUnderline(lCurveParam[iTotPlot].rightScale);
+          myPainter->setPen(curveParamLst[iTotPlot].color);
+        msg=curveParamLst[iTotPlot].name+"   ";
+        lgdFont.setUnderline(curveParamLst[iTotPlot].rightScale);
         myPainter->setFont(lgdFont);
         myPainter->drawText(xPosition,yPosition,msg);
         struct SHoveringData hovData;
         hovData.rect=myPainter->boundingRect(xPosition,yPosition-textHeight,400,50,Qt::AlignLeft, msg);
         hovData.iTotPlot=iTotPlot;
         hovDataLst.append(hovData);
-        markerXPos=xPosition+myPainter->fontMetrics().width(lCurveParam[iTotPlot].name)+int(markHalfWidth)+1;
+        markerXPos=xPosition+myPainter->fontMetrics().horizontalAdvance(curveParamLst[iTotPlot].name)+int(markHalfWidth)+1;
         markerYPos=yPosition-int(0.8f*myPainter->fontMetrics().height()+int(markHalfWidth));
-        xPosition+=myPainter->fontMetrics().width(msg);
+        xPosition+=myPainter->fontMetrics().horizontalAdvance(msg);
        //Posizione dei marcatori vicino ai rispettivi nomi sulla leggenda:
        markPositions[iTotPlot].setX(markerXPos);
        markPositions[iTotPlot].setY(markerYPos);
@@ -5041,8 +5238,10 @@ bool CLineChart::CFilterClip::getLine(float X1_, float Y1_, float X2_, float Y2_
 }
 
 void CLineChart::CFilterClip::getRect(int X0, int Y0, int X1, int Y1){
-    R.Left=X0-0.5f;	R.Top=Y0-0.5f;
-    R.Right=X1+0.5f; R.Bottom=Y1+0.5f;
+    R.Left=X0;
+    R.Top=Y0;
+    R.Right=X1;
+    R.Bottom=Y1;
 }
 
 bool  CLineChart::CFilterClip::isInRect(float X, float Y){
@@ -5078,7 +5277,7 @@ bool  CLineChart::CFilterClip::isRedundant(float X, float Y){
 int CLineChart::CFilterClip::giveRectIntersect(FloatPoint & I1, FloatPoint &I2){
     /* Questa funzione copia nei parametri passati i valori delle eventuali intersezioni
     del segmento congiungente i due punti interni (X1,Y1) e (X2,Y2), passati con la
-    prescedente getLine, con il rettangolo R passato con il recente GetRect.
+    precedente getLine, con il rettangolo R passato con il recente GetRect.
     La funzione ritorna il numero di intersezioni trovate.
     */
     float X;
@@ -5212,8 +5411,10 @@ bool CLineChart::CFilterClipD::getLine(double X1_, double Y1_, double X2_, doubl
 }
 
 void CLineChart::CFilterClipD::getRect(int X0, int Y0, int X1, int Y1){
-    R.Left=X0-0.5;	R.Top=Y0-0.5;
-    R.Right=X1+0.5; R.Bottom=Y1+0.5;
+    R.Left=X0;
+    R.Top=Y0;
+    R.Right=X1;
+    R.Bottom=Y1;
 }
 
 bool  CLineChart::CFilterClipD::isInRect(double X, double Y){

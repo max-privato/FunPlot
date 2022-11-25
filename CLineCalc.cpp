@@ -283,8 +283,6 @@ Ogni volta che compute() è chiamata dall'esterno ricopio line in intLine, mentr
      if(unaryMinus)pConst[d1]=-pConst[d1];
       result=pConst[d1];
     }
-   unary=false;
-   unaryMinus=false;
    return result;
 }
 
@@ -376,7 +374,10 @@ struct SXYNameData{
     //Ora procedo con l'analisi considerando la ricerca di nomi validi
     while(!eol){
        i=rxLetter.indexIn(line,i); //l'inizio della variabile dev'essere una lettera
-       if(i<0){ eol=true;  break; }
+       if(i<0){
+         eol=true;
+         continue;
+       }
        if(allowMathFunctions)
          j=rxNotLetterDigitBracket.indexIn(line,i+1); //la fine della variabile è il primo carattere non lettera né digit né parentesi chiusa (è parentesi ad es. nel caso di 'abs(v9)')
        else
@@ -426,7 +427,7 @@ struct SXYNameData{
          else
            nameData.ret=
              "The following incorrect variable name was read in the input string: \"" +varStr+"\"";
-           return nameData;
+         return nameData;
        }
        // Ora qui devo verificare se i numeri di file e gli indici di variabile sono validi
        if(!fileNumsLst.contains(varXYNums.fileNum)){
@@ -480,7 +481,7 @@ Per prima cosa si tratta l'eventuale unario che si trova a inizio stringa, e poi
      i=rxNum.indexIn(line,i);
      if(i<0){
        eol=true;
-       break;
+       continue;
      }
      if(i>0){
         // se immediatamente prima di i vi è un digit o una lettera il digit che ho trovato è all'interno di una variabile e non mi interessa
@@ -615,7 +616,7 @@ La costruzione di lineFullNames segue la seguente logica:
     QString name=nameList[i];
     if(name.indexOf("v")<0)
       return "Error in getNamesAndMatrix";
-      int varIndex=name.remove(0,name.indexOf("v")+1).toInt()-1; //indice della variabile (es. se è f4v3 index è 3-1=2)
+    int varIndex=name.remove(0,name.indexOf("v")+1).toInt()-1; //indice della variabile (es. se è f4v3 index è 3-1=2)
       name=nameList[i];
       if(name.indexOf("v")>1)
         if(name[name.indexOf("v")-2]=='f')
@@ -623,7 +624,7 @@ La costruzione di lineFullNames segue la seguente logica:
     //aggiungo il primo carattere alla lista dei caratteri che serve per le unità di misura:
     unitCharLst.append(namesFullList[fileIndex][varIndex][0]);
 
-    int pos=lineFullNames.indexOf(name);
+    int pos;
     //Ora procedo con la sostituzione dei nomi completi
     while ((pos=lineFullNames.indexOf(name)) >= 0){
       QString insertVar, myNum;
