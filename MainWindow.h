@@ -18,7 +18,7 @@ class MainWindow : public QMainWindow
 {
     Q_OBJECT
 protected:
-    void showEvent(QPaintEvent *ev_);
+    void showEvent(QShowEvent *ev) override;
 
 public:
     explicit MainWindow(QWidget *parent = nullptr);

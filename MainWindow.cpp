@@ -40,6 +40,9 @@ MainWindow::MainWindow(QWidget *parent) :
 
     ui->plotBtn->setDefault(true);
     connect(ui->lineChart,SIGNAL(valuesChanged(SXYValues,bool,bool)),this, SLOT(chartValuesChanged(SXYValues,bool,bool)));
+    connect(ui->xMinEdit,   &QLineEdit::returnPressed, this, &MainWindow::on_plotBtn_clicked);
+    connect(ui->xMaxEdit,   &QLineEdit::returnPressed, this, &MainWindow::on_plotBtn_clicked);
+    connect(ui->nPointsEdit,&QLineEdit::returnPressed, this, &MainWindow::on_plotBtn_clicked);
     ui->lineChart->linearInterpolate=false;
     ui->lineChart->addLegend=false;
     ui->interpolateBox->setVisible(false);
@@ -172,9 +175,10 @@ void MainWindow::on_lineEdit_returnPressed()
    on_plotBtn_clicked();
 }
 
-void MainWindow::showEvent(QPaintEvent * )
+void MainWindow::showEvent(QShowEvent *ev)
 {
-   on_plotBtn_clicked() ;
+    QMainWindow::showEvent(ev);
+    on_plotBtn_clicked();
 }
 
 void MainWindow::on_dataTBtn_clicked(bool checked)
