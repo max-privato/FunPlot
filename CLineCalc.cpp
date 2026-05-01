@@ -47,17 +47,17 @@ CLineCalc::CLineCalc(bool allowMathFunctions_){
     fun2[2]=div;
     fun2[3]=sum;
     fun2[4]=subtr;
-    rxAlphabet=QRegExp("[0-9a-zA-Z .-+*/()]");
-    rxDatumPtr=QRegExp("[#@]");
-    rxLetter=QRegExp("[a-zA-Z]"); //initial character of a variable
-    rxLetterDigit=QRegExp("[a-zA-Z0-9]");
-    rxNotDigit=QRegExp("[^0-9]");  //not a digit
-    rxNotNum=QRegExp("[^0-9.]"); //not a character allowable in a number. I caratteri 'E' e 'e' sono considerati non-allowable perché sono trattati a parte per gestire l'eventuale segno sull'esponente.
-    rxNum=QRegExp("[0-9.]"); //initial character of a number
-    rxNumSepar=QRegExp("[-+*/() ]"); //carattere ammissibile fra un numero ed il successivo
-    rxOper=QRegExp("[-+*/]"); //operator
-    rxNotLetterDigit=QRegExp("[^a-zA-Z0-9]");
-    rxNotLetterDigitBracket=QRegExp("[^a-zA-Z0-9)]");
+    rxAlphabet=QRegularExpression("[0-9a-zA-Z .-+*/()]");
+    rxDatumPtr=QRegularExpression("[#@]");
+    rxLetter=QRegularExpression("[a-zA-Z]"); //initial character of a variable
+    rxLetterDigit=QRegularExpression("[a-zA-Z0-9]");
+    rxNotDigit=QRegularExpression("[^0-9]");  //not a digit
+    rxNotNum=QRegularExpression("[^0-9.]"); //not a character allowable in a number. I caratteri 'E' e 'e' sono considerati non-allowable perché sono trattati a parte per gestire l'eventuale segno sull'esponente.
+    rxNum=QRegularExpression("[0-9.]"); //initial character of a number
+    rxNumSepar=QRegularExpression("[-+*/() ]"); //carattere ammissibile fra un numero ed il successivo
+    rxOper=QRegularExpression("[-+*/]"); //operator
+    rxNotLetterDigit=QRegularExpression("[^a-zA-Z0-9]");
+    rxNotLetterDigitBracket=QRegularExpression("[^a-zA-Z0-9)]");
     defaultFileNum=-1;
     pConst=nullptr;
     pUnaryMinus=nullptr;
@@ -69,7 +69,8 @@ CLineCalc::CLineCalc(bool allowMathFunctions_){
 QString CLineCalc::checkLine(){
     /* Questa funzione fa un'analisi della validità della stringa descrittiva, in quanto in PlotXY l'accettazione della stringa è precedente al momento in cui essa viene valutata: infatti essa è accettata al momento dell'inserzione in VarList, mentre è eseguita iterativamente dopo che è stato cliccato il pulsante di plot().
 */
-    if(!lineReceived)return "No line already received.";
+    if(!lineReceived)
+        return "No line already received.";
     return "";
 }
 
@@ -84,17 +85,17 @@ QString CLineCalc::computeUnits(){
     QString unit="";
 
     // In questa versione semplificata la stringa deve contenere solo un alfabeto semplificato:
-    QRegExp rxSimpleAlphabet=QRegExp("[ @#+-*()]");
+    QRegularExpression rxSimpleAlphabet("[ @#+-*()]");
     //1) verifica che tutti i caratteri appartengono all'alfabeto previsto.
     for(int i=0; i<line.length(); i++){
-        if(rxSimpleAlphabet.indexIn(line,i)<0){
+        if(regExpIndexIn(rxSimpleAlphabet,line,i)<0){
           return "";
       }
     }
     // 2) verifico se ho un singolo prodotto e nel caso eseguo la valutazione dell'unità
     i=line.indexOf('*');
     // Se ho un secondo prodotto esco con unità indefinita:
-    if(i>=0 && i<line.count()-1)
+    if(i>=0 && i<line.size()-1)
       if(line.indexOf('*',i+1)>0)
         return "";
     if(i>=0){
@@ -191,7 +192,7 @@ Ogni volta che compute() è chiamata dall'esterno ricopio line in intLine, mentr
           x1=pVar[d1][iVal];
        }
      }//cerco il dato a destra:
-     d2=rxDatumPtr.indexIn(intLine,o+1);
+     d2=regExpIndexIn(rxDatumPtr,intLine,o+1);
      if(d2<0||d2>end){ret="Unable to find second operand. \nInvolved operator: \""+ intLine.mid(o,1)+"\"";return 0;}
      if(intLine[d2]=='#')
        x2=pConst[d2];
@@ -231,7 +232,7 @@ Ogni volta che compute() è chiamata dall'esterno ricopio line in intLine, mentr
        }
      }
      //cerco il dato a destra:
-     d2=rxDatumPtr.indexIn(intLine,o+1);
+     d2=regExpIndexIn(rxDatumPtr,intLine,o+1);
      if(d2<0){ret="Internal error\"x2_*/\"";return 0;}
      if(intLine[d2]=='#')
        x2=pConst[d2];
@@ -373,21 +374,21 @@ struct SXYNameData{
     i=0;
     //Ora procedo con l'analisi considerando la ricerca di nomi validi
     while(!eol){
-       i=rxLetter.indexIn(line,i); //l'inizio della variabile dev'essere una lettera
+       i=regExpIndexIn(rxLetter,line,i); //l'inizio della variabile dev'essere una lettera
        if(i<0){
          eol=true;
          continue;
        }
        if(allowMathFunctions)
-         j=rxNotLetterDigitBracket.indexIn(line,i+1); //la fine della variabile è il primo carattere non lettera né digit né parentesi chiusa (è parentesi ad es. nel caso di 'abs(v9)')
+         j=regExpIndexIn(rxNotLetterDigitBracket,line,i+1); //la fine della variabile è il primo carattere non lettera né digit né parentesi chiusa (è parentesi ad es. nel caso di 'abs(v9)')
        else
-         j=rxNotLetterDigit.indexIn(line,i+1); //la fine della variabile è il primo carattere non lettera né digit
+         j=regExpIndexIn(rxNotLetterDigit,line,i+1); //la fine della variabile è il primo carattere non lettera né digit
        if(j>=0)
          varStr=line.mid(i,j-i);
        else{
          // In questo caso posso avere una o più parentesi chiuse. Devo scegliere il primo carattere a sinistra della prima parentes chiusa.
          if(line[line.length()-1]==')'){
-            j=rxNotLetterDigit.indexIn(line,i+1);
+            j=regExpIndexIn(rxNotLetterDigit,line,i+1);
             varStr=line.mid(i,j-i);
          }else{
             varStr=line.mid(i,line.length());
@@ -454,7 +455,7 @@ struct SXYNameData{
            nameData.varNames.append(varStr);
        i+=varStr.length();
 
-       if(i>line.count()-1)
+       if(i>line.size()-1)
            eol=true;
     }
     nameData.line=line;
@@ -478,14 +479,14 @@ Per prima cosa si tratta l'eventuale unario che si trova a inizio stringa, e poi
    i=-1;
    while(!eol){
      i++;
-     i=rxNum.indexIn(line,i);
+     i=regExpIndexIn(rxNum,line,i);
      if(i<0){
        eol=true;
        continue;
      }
      if(i>0){
         // se immediatamente prima di i vi è un digit o una lettera il digit che ho trovato è all'interno di una variabile e non mi interessa
-        if(rxLetterDigit.indexIn(line,i-1)==i-1) continue;
+        if(regExpIndexIn(rxLetterDigit,line,i-1)==i-1) continue;
         //devo verificare se il numero è preceduto da un operatore unario ('+' o '-'). Prima di tutto cerco il più recente unario:
         k1=max(line.lastIndexOf('+',i-1), line.lastIndexOf('-',i-1));
         //alla posizione i vi è un unario se prima di esso, escluso al più un ' ', non vi è nulla o una parentesi aperta
@@ -498,14 +499,14 @@ Per prima cosa si tratta l'eventuale unario che si trova a inizio stringa, e poi
         if(unary && line[k1]=='-') unaryMinus=true;
         if(unary)line[k1]=' ';
       }
-      j=rxNotNum.indexIn(line,i+1);
+      j=regExpIndexIn(rxNotNum,line,i+1);
       //Se il numero era in formato esponenziale, line[j] contiene la lettera "E" o "e".
       if(j>0){
         if(line[j]=='E'||line[j]=='e'){
           if(line[j+1]=='+'||line[j+1]=='-')
-            j=rxNumSepar.indexIn(line,j+2);
+            j=regExpIndexIn(rxNumSepar,line,j+2);
           else
-            j=rxNumSepar.indexIn(line,j+1);
+            j=regExpIndexIn(rxNumSepar,line,j+1);
         }
       }
     if(j<0)j=line.length();
@@ -535,16 +536,16 @@ QString fillNames(QString inpStr, int defaultFileNum){
     int i=-1;
     while (1) {
         i++;
-        if(i>=filledLine.count()) break;
+        if(i>=filledLine.size()) break;
         if(filledLine[i] != 'v'){
             continue;
         }
         if(i==0){
             filledLine.insert(i,fs);
-            i+=fs.count();
+            i+=fs.size();
         } else  if(!filledLine[i-1].isDigit()){
             filledLine.insert(i,fs);
-            i+=fs.count();
+            i+=fs.size();
         }
     }
     return filledLine;
@@ -632,7 +633,7 @@ La costruzione di lineFullNames segue la seguente logica:
         insertVar=namesFullList[fileIndex][varIndex];
       else
         insertVar="f"+myNum.setNum(fileIndex+1)+":"+namesFullList[fileIndex][varIndex];
-      lineFullNames.remove(pos,name.count());
+      lineFullNames.remove(pos,name.size());
       lineFullNames.insert(pos,insertVar);
     }
   }
@@ -665,7 +666,7 @@ QString CLineCalc::getNamesAndMatrix( QList <QString> nameList, float ** y_){
    *
    * Essa va chiamata dopo getLine() e prima di compute()
    * Il primo parametro contiene una lista di nomi. Il secondo una matrice, realizzata
-   * con la mia funzione "CreateFmatrix", quindi attraverso puntatore ad un vettore di
+   * con la mia funzione "CreateFmatrix", quindi attraverso puntatore a un vettore di
    * puntatori alle righe.
    * Ogni riga contiene i dati numerici di una delle funzioni, con corrispondenza ordinata
    * ai nomi riportati in nameList.
@@ -675,7 +676,8 @@ Successivamente valuterò se, per ragioni di efficienza e occupazione di memoria
 Dopo che ha ricevuto i valori la funzione si prepara al successivo calcolo iterativo con la sostituzione di costanti e variabili con puntatori
 */
 
-  if(!lineReceived)return "INTERNAL ERROR:\nNo Line received before \"getAndPrepare()\".";
+  if(!lineReceived)
+      return "INTERNAL ERROR:\nNo Line received before \"getLine()\".";
   myNameList=nameList;
   yReceived=true;
   ret=substConstsWithPointers();  //sostituisco tutte le costanti con 'puntatori' a float
@@ -697,30 +699,35 @@ Dopo che ha ricevuto i valori la funzione si prepara al successivo calcolo itera
         "The offending dot is in the " +dotStr+ ordinalStr+ " position in the string.";
   }
   //Fra una costante e la successiva o fra una costante e una variabile. oltre al più degli spazi, ci deve essere un operatore. Non deve quindi esistere alcuna sottostringa che contenga solo '#', 'à'@', e ' '.
-  QRegExp rxInvalid=QRegExp("# *#");
-  if(rxInvalid.indexIn(line)>-1){
+  QRegularExpression rxInvalid("# *#");
+  if(regExpIndexIn(rxInvalid,line)>-1){
     ret="Two consecutive constants without operators between have been detected.\nThis is invalid";
+  }
+  // Un numero non può essere seguito direttamente da una parentesi aperta senza un operatore (es. "3(5-7)" è invalido)
+  rxInvalid=QRegularExpression("#\\s*\\(");
+  if(ret.length()==0 && regExpIndexIn(rxInvalid,line)>-1){
+    ret="Invalid string: a parenthesis is preceded by a numeric value\nwithout any operator in-between.";
   }
 
   if(ret.length()==0)
     ret=substVarsWithPointers(y_); //sostituisco tutte le variabili con 'puntatori' a float
   if(ret!="")
       return ret;
-  rxInvalid=QRegExp("@ *@");
-  if(rxInvalid.indexIn(line)>-1){
+  rxInvalid=QRegularExpression("@ *@");
+  if(regExpIndexIn(rxInvalid,line)>-1){
     ret="Two consecutive variables without operators between have been detected.\nThis is invalid";
   }
-  rxInvalid=QRegExp("# *@");
-  if(rxInvalid.indexIn(line)>-1){
+  rxInvalid=QRegularExpression("# *@");
+  if(regExpIndexIn(rxInvalid,line)>-1){
     ret="A constant is followed by a variable without operators in-between.\nThis is invalid";
   }
-  rxInvalid=QRegExp("@ *#");
-  if(rxInvalid.indexIn(line)>-1){
+  rxInvalid=QRegularExpression("@ *#");
+  if(regExpIndexIn(rxInvalid,line)>-1){
       ret="A variable is followed by a constant without operators in-between.\nThis is invalid";
   }
   int index;
-    rxInvalid=QRegExp(" *\\* *@"); //zero or more spaces, operator '*', zero or more spaces, '@'
-    index=rxInvalid.indexIn(line);
+    rxInvalid=QRegularExpression(" *\\* *@"); //zero or more spaces, operator '*', zero or more spaces, '@'
+    index=regExpIndexIn(rxInvalid,line);
     if(index>-1){
       if(index==0) //se ho trovato il pattern all'inizio prima non ci sono operatori
         ret="A non-unary operator is followed by a variable,\nbut not preceded by any variable or operator.\nThis is invalid";
@@ -731,8 +738,8 @@ Dopo che ha ricevuto i valori la funzione si prepara al successivo calcolo itera
     }
 
     //Dopo ogni operatore vi deve essere una costante o una variabile. Siccome gli operatori consecutivi sono stati già filtrati, mi rimane solo da verificare che non vi sia un operatore a fine riga.
-  rxInvalid=QRegExp("[^ ]");  //cercando da fondo cerco l'ultimo carattere che non è spazio
-  index=rxInvalid.indexIn(line,-1);
+  rxInvalid=QRegularExpression("[^ ]");  //cercando da fondo cerco l'ultimo carattere che non è spazio
+  index=regExpIndexIn(rxInvalid,line,-1);
   if(index>-1){
     if(line[index]!='@' && line[index]!='#' && line[index]!=')')
       ret="An operator is at the very end of the input string.\nThis is invalid";
@@ -796,7 +803,7 @@ lineSimple    è la stringa ottenuta da lineNoInt mediante semplificazione dei n
 
    line=lineNoInt;
    lineFirstChar=line;
-   for(int i=0; i<line.count(); i++)
+   for(int i=0; i<line.size(); i++)
        lineFirstChar[i]=' ';
    //per semplicità alloco spazio per un numero reale costante ed uno booleano per ogni carattere della stringa "noInt".
    pConst=new float[line.length()];
@@ -810,17 +817,17 @@ lineSimple    è la stringa ottenuta da lineNoInt mediante semplificazione dei n
    // **** ora una semplice diagnostica.
    //1) verifica che tutti i caratteri appartengono all'alfabeto previsto.
    for(int i=0; i<line.length(); i++){
-     if(rxAlphabet.indexIn(line.mid(i,1))<0)
+     if(regExpIndexIn(rxAlphabet,line.mid(i,1))<0)
         return "The string cannot contain character "+line.mid(i,1)+"\'";
    }
    //2) dopo un operatore non deve essere presente un altro operatore:
    j=-1;
    while(1){
      j++;
-     j=rxOper.indexIn(line,j);
+     j=regExpIndexIn(rxOper,line,j);
      if(j>=0){
          //ora in j è l'indice di un operatore. Il carattere successivo non deve essere un operatore; se è ' ' quello ancora dopo non dev'essere un operatore.
-         k=rxOper.indexIn(line,j+1);
+         k=regExpIndexIn(rxOper,line,j+1);
          if(k==j+1 || (k==j+2 && line[j+1]==' '))
             return "The string contains consecutive operators without numbers or brackets in between.";
      } else break;
@@ -843,12 +850,18 @@ lineSimple    è la stringa ottenuta da lineNoInt mediante semplificazione dei n
 
 
 QString CLineCalc::giveLine(QString str){
-   if(str=="funText")return funText;
-   if(str=="lineUser")return lineUser;
-   if(str=="lineNoInt")return lineNoInt;
-   if(str=="line")return line;
-   if(str=="lineInt")return lineInt;
-   if(str=="lineFullNames")return lineFullNames;
+   if(str=="funText")
+       return funText;
+   if(str=="lineUser")
+       return lineUser;
+   if(str=="lineNoInt")
+       return lineNoInt;
+   if(str=="line")
+       return line;
+   if(str=="lineInt")
+       return lineInt;
+   if(str=="lineFullNames")
+       return lineFullNames;
    return "";
 }
 
@@ -861,14 +874,14 @@ Se il nome è di tipo v# il filenum è defaultFileNum*/
     SVarNums varNums;  //E' il valore di ritorno. Se varNNum<0 vi è stato un errore
     switch(varStr.at(0).toLatin1()){
       case 'f':
-        j=rxNotDigit.indexIn(varStr,1); //j dovrebbe contenere il primo carattere dopo il numero dopo f
+        j=regExpIndexIn(rxNotDigit,varStr,1); //j dovrebbe contenere il primo carattere dopo il numero dopo f
         if(j<0) goto errorReturn;
         fileNum=varStr.mid(1,j-1).toInt(&ok);
         if(ok==false) goto errorReturn;
         if(varStr[j]!='v') goto errorReturn;
       [[clang::fallthrough]]; case 'v':
 //        if(varStr[0]=='v') j=0;
-        k=rxNotDigit.indexIn(varStr,j+2); //k dovrebbe contenere il primo carattere dopo il numero dopo v. Siccome tale carattere non deve esistere, mi attendo k=-1
+        k=regExpIndexIn(rxNotDigit,varStr,j+2); //k dovrebbe contenere il primo carattere dopo il numero dopo v. Siccome tale carattere non deve esistere, mi attendo k=-1
         if(k>=0) goto errorReturn;
         varNNum=varStr.remove(0,j+1).toInt(&ok);
         if(ok==false) goto errorReturn;
@@ -910,7 +923,7 @@ QString CLineCalc::substFunsWithPointers(){
          index=line.indexOf(funStr[i],++index);
          if(index>-1){
            //Qui non sono ancora certo di aver trovato una stringa funzione, in quanto potrebbe essere la prima parte di un nome di variabile lungo, ad es. sinModified (contiene sin)
-           if(line[index+funStr[i].count()]!='(')
+           if(line[index+funStr[i].size()]!='(')
                continue;
 /* Ora devo verificare che non ho trovato una stringa funzione illecita per avere a SX del testo, ad es. "xsin"  invece di "sin". Devo quindi escludere lettere e digits
 */
@@ -925,11 +938,11 @@ QString CLineCalc::substFunsWithPointers(){
             }
            //Ho trovato una stringa funzione, deve essere seguita da '('
            //Trovo il carattere dopo la stringa:
-           j=rxNotLetterDigit.indexIn(line,index);
+           j=regExpIndexIn(rxNotLetterDigit,line,index);
            if(j<1 || line[j]!='('){
              QString str;
              if(j<1)
-               str=line.mid(index,line.count()-index);
+               str=line.mid(index,line.size()-index);
              else
                str=line.mid(index,j-index+1);
              return "string "+ str +
@@ -939,7 +952,7 @@ QString CLineCalc::substFunsWithPointers(){
            }else{
              line[index]='&';
              pFun[index]=fun1[i];
-             for (j=1; j<funStr[i].count(); j++)
+             for (j=1; j<funStr[i].size(); j++)
                line[index+j]=' ';
              //do' la possibilità ad altre istanze della medesima funzione di essere presee in considerazione:
 //             break;
@@ -970,12 +983,12 @@ QString CLineCalc::substVarsWithPointers(float ** y_){
    while(!eol){
       unary=false;
       unaryMinus=false;
-      i=rxLetter.indexIn(line,i);
+      i=regExpIndexIn(rxLetter,line,i);
       if(i<0){
           eol=true;
           break;
       }
-      j=rxNotLetterDigit.indexIn(line,i+1);
+      j=regExpIndexIn(rxNotLetterDigit,line,i+1);
       if(j>=0)
         varStr=line.mid(i,j-i);
       else

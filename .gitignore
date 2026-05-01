@@ -1,0 +1,33 @@
+# Qt Creator: clangd language server cache (auto-generated, machine-specific)
+.qtc_clangd/
+
+# Qt Creator: project user settings (machine-specific paths and build configs)
+*.pro.user
+*.pro.user.*
+
+# Build output directories
+build*/
+debug/
+release/
+
+# Qt MOC, RCC and UIC generated files
+moc_*.cpp
+moc_*.h
+qrc_*.cpp
+ui_*.h
+
+# Object files and linker output
+*.o
+*.obj
+*.a
+*.lib
+*.exe
+*.dll
+*.so
+*.dylib
+
+# CMake / qmake generated
+Makefile
+Makefile.*
+.qmake.stash
+.qmake.cache

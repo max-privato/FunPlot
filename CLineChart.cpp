@@ -19,6 +19,7 @@
 
 #include <QtGui>
 #include <QApplication>
+#include "qtcompat.h"
 #include <QFontMetrics>
 #include <QInputDialog>
 #include <QMessageBox>
@@ -2056,7 +2057,7 @@ bool CLineChart::event(QEvent *event){
               if(!curveParamLst[hovData.iTotPlot].isFunction)break;
               hovVarRect= hovData.rect;
 //              QString str=curveParamLst[hovData.iTotPlot].fullName;
-              QToolTip::showText(helpEvent->globalPos(), curveParamLst[hovData.iTotPlot].fullName);
+              QToolTip::showText(QME_GLOBAL_POS(helpEvent), curveParamLst[hovData.iTotPlot].fullName);
 //              setToolTip(lCurveParam[hovData.iTotPlot].fullName);
             }
           }
@@ -2066,7 +2067,7 @@ bool CLineChart::event(QEvent *event){
       QPoint nearP;
       QPointF valueP;
       int ttType=giveNearValue(helpEvent->pos(),nearP,valueP);
-      qDebug()<<"nearValue x: nearX: :"<<helpEvent->pos().x()<<nearP.x();
+//      qDebug()<<"nearValue x: nearX: :"<<helpEvent->pos().x()<<nearP.x();
       if(ttType==0){
           QToolTip::hideText();
           return true;
@@ -2075,9 +2076,9 @@ bool CLineChart::event(QEvent *event){
       QString  sY=QString::number(valueP.y());
 
       if(ttType==1)
-        QToolTip::showText(helpEvent->globalPos(), "x: "+sX+"\nry: "+sY);
+        QToolTip::showText(QME_GLOBAL_POS(helpEvent), "x: "+sX+"\nry: "+sY);
       else //ttType=-1
-        QToolTip::showText(helpEvent->globalPos(), "x: "+sX+"\ny: "+sY);
+        QToolTip::showText(QME_GLOBAL_POS(helpEvent), "x: "+sX+"\ny: "+sY);
       // attivo il seguente timer che serve per vedere quando i tooltip è scomparso, e di conseguenza cancellare anche il quadratino rosso.
       tooltipTimer->start(200);
       bool thick=plotPen.width()>1;
@@ -2660,7 +2661,7 @@ void CLineChart::mouseMoveEvent(QMouseEvent *event)
 */
   int nearX;
   static SXYValues values;
-  int posX=event->pos().x();
+  int posX=QME_X(event);
   if(dataCursDragging)
     hovVarRect=QRect(0,0,0,0);
     //La seguente sezione 1 è stata trasferita all'interno della funzione event (che cestisce anche lo snap to grid)
@@ -2682,7 +2683,7 @@ void CLineChart::mouseMoveEvent(QMouseEvent *event)
 //2) selezione dell'area di zoom
   if(zoomSelecting){  //sono in fase di selezione del rettangolo di zoom
     //endPos è la posizione finale per il rettangolo delle zoomate
-    endZoomRectPos=event->pos();
+    endZoomRectPos=QME_POS(event);
     update();
     return;
   }
@@ -2742,7 +2743,7 @@ void CLineChart::mouseDoubleClickEvent(QMouseEvent *event){
   */
   bool ok;
   //Se il doppioclick non è nel rettangolo del titolo esco:
-  if(!titleRectF.contains(event->pos()))return;
+  if(!titleRectF.contains(QME_POS(event)))return;
   //Se il titolo non è visibile esco
   if(!writeTitle1)return;
 
@@ -2775,7 +2776,7 @@ Questo aggancio viene comandato nella funzione mouseMoveEvent(), attraverso la s
 */
 
     emit chartClickedOn();
-    int Ret=0, x1=event->pos().x()-1;
+    int Ret=0, x1=QME_X(event)-1;
 
     if(dataCursSelecting>0){  //sono nel raggio d'azione di un qualche cursore dati
       if(event->buttons() & Qt::RightButton)return;
@@ -2818,7 +2819,7 @@ In attesa di comprendere la causa del problema copio il rettangolo in una copia 
       QAction * zoombackAct, *unzoomAct, *myAct;
       zoombackAct=myMenu.addAction("Zoom Back");
       unzoomAct=myMenu.addAction("Unzoom");
-      myAct=myMenu.exec(event->globalPos());
+      myAct=myMenu.exec(QME_GLOBAL_POS(event));
       if(myAct==zoombackAct)
         dispRect=plStack.pop();
       if(myAct==unzoomAct){
@@ -2836,8 +2837,8 @@ In attesa di comprendere la causa del problema copio il rettangolo in una copia 
   if(event->buttons() & Qt::LeftButton){  //tasto sinistro: inizio zoomata
     //Qui è stato premuto il bottone sinistro:
     zoomSelecting=true;
-    stZoomRectPos=event->pos();
-    endZoomRectPos=event->pos();
+    stZoomRectPos=QME_POS(event);
+    endZoomRectPos=QME_POS(event);
   }
 }
 
@@ -2859,12 +2860,12 @@ void CLineChart::mouseReleaseEvent(QMouseEvent *ev)
 
   if(zoomSelecting){
     SFloatRect2 oldDispRect=dispRect;
-    if(ev->x()<=stZoomRectPos.x() || ev->y()<=stZoomRectPos.y())
+    if(QME_X(ev)<=stZoomRectPos.x() || QME_Y(ev)<=stZoomRectPos.y())
       goto Return;
     zoomed=true;
     forceYZero=false;
     dispRect=giveZoomRect(int(stZoomRectPos.x()), int(stZoomRectPos.y()),
-                          int(ev->x()), int(ev->y()));
+                          QME_X(ev), QME_Y(ev));
     //Qui devo comandare il grafico con i nuovi estremi
     scaleXY(dispRect,false);
 

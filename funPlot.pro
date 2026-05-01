@@ -7,6 +7,7 @@
 QT       += core gui svg printsupport
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
+greaterThan(QT_MAJOR_VERSION, 5): CONFIG += c++17
 
 TARGET = funPlot
 TEMPLATE = app
@@ -29,7 +30,8 @@ HEADERS  += MainWindow.h\
     CPlotOptions.h \
     CScaleDlg.h \
     info.h \
-    CUnitsDlg.h
+    CUnitsDlg.h \
+    qtcompat.h
 
 FORMS    += MainWindow.ui \
     CPlotOptions.ui \
