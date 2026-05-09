@@ -31,3 +31,4 @@ Makefile
 Makefile.*
 .qmake.stash
 .qmake.cache
+funPlot.pro.user
