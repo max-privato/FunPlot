@@ -28,7 +28,6 @@
 #include <QSvgGenerator>
 #include <QString>
 #include <stdio.h>
-#include <time.h>
 #include "CLineChart.h"
 // Le seguenti due righe sono state commentate il 19/11/2018 in quanto è stato introdotto l'uso di qMin() e qMax()
 //#define max(a, b)  (((a) > (b)) ? (a) : (b))
@@ -1099,8 +1098,7 @@ Per ora pertanto si lascia il codice con queste righe, riducendone al minimo le 
       }else{
 // Qui uso la sintassi che mi è stata suggerita da Samuel Rodal, ma è superflua l'iterazione fra i poligoni, visto che le mie curve sono composte tutte da un unico poligono. Notare l'uso di foreach(), estensione di Qt al C++ (significato accessibile via help).
         int i;
-        qDebug()<<"r-g-b: "<<myPainter->pen().color().red()<< myPainter->pen().color().green()<<myPainter->pen().color().blue();
-        qDebug()<<"width: "<<myPainter->pen().width();
+//        qDebug()<<"r-g-b: "<<myPainter->pen().color().red()<< myPainter->pen().color().green()<<myPainter->pen().color().blue();
         foreach(QPolygonF poly, path.toSubpathPolygons())
           for(i=0; i<poly.size()-1; i++)
             myPainter->drawLine(poly.at(i),poly.at(i+1));
@@ -3868,7 +3866,7 @@ QString CLineChart::goPlot(bool Virtual, bool /*IncludeFO*/){
     plotPen.setWidth(PPlotPenWidth+1);
   }else{  //Ora sono in spessore penna automatico
     //Si ricordi che il risultato della seguente divisione è troncato, non arrotondato.
-    ticPen.setWidth(qMax(1,(plotRect.width()+plotRect.height())/1000));
+    ticPen.setWidth(qMax(1,(plotRect.width()+plotRect.height())/700));
     plotPen.setWidth(ticPen.width());
   }
   if(cutsLimits){
