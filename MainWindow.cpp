@@ -1,4 +1,5 @@
 #include <QMessageBox>
+#include <QResizeEvent>
 #include "MainWindow.h"
 #include "ui_MainWindow.h"
 #include "matrix.h"
@@ -175,9 +176,34 @@ void MainWindow::on_lineEdit_returnPressed()
    on_plotBtn_clicked();
 }
 
+void MainWindow::updateTopBarFont(int windowHeight)
+{
+    // Font size grows proportionally to window height, clamped between 8 and 13 pt.
+    // Factor 53: height 424 → 8pt, 530 → 10pt, 636 → 12pt, ≥689 → 13pt.
+    int fontSize = qBound(8, windowHeight / 53, 13);
+    QFont f = font();
+    f.setPointSize(fontSize);
+    ui->plotBtn->setFont(f);
+    ui->lineEdit->setFont(f);
+    ui->infoBtn->setFont(f);
+    ui->xMinLbl->setFont(f);
+    ui->xMinEdit->setFont(f);
+    ui->xMaxLbl->setFont(f);
+    ui->xMaxEdit->setFont(f);
+    ui->nPointsLbl->setFont(f);
+    ui->nPointsEdit->setFont(f);
+}
+
+void MainWindow::resizeEvent(QResizeEvent *ev)
+{
+    QMainWindow::resizeEvent(ev);
+    updateTopBarFont(ev->size().height());
+}
+
 void MainWindow::showEvent(QShowEvent *ev)
 {
     QMainWindow::showEvent(ev);
+    updateTopBarFont(height());
     on_plotBtn_clicked();
 }
 

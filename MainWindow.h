@@ -19,6 +19,7 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 protected:
     void showEvent(QShowEvent *ev) override;
+    void resizeEvent(QResizeEvent *ev) override;
 
 public:
     explicit MainWindow(QWidget *parent = nullptr);
@@ -38,6 +39,7 @@ private slots:
     void on_scaleTBtn_clicked();
 
 private:
+    void updateTopBarFont(int windowHeight);
     bool exactMatch;
     float *x;
     float **y; //matrice delle funzioni da elaborare
