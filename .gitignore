@@ -32,3 +32,4 @@ Makefile.*
 .qmake.stash
 .qmake.cache
 funPlot.pro.user
+.claude/worktrees/beautiful-beaver-3c1d4d/

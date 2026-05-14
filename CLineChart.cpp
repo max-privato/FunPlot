@@ -38,7 +38,7 @@
 
 
 
-static QString smartSetNum(float num, int prec){
+QString smartSetNum(float num, int prec){
     /*  Funzione PURA che scrive su stringa i numeri con un numero prefissato di cifre
      * significative nella versione più compatta possibile, ma senza perdita di informazioni.
      *  E' stato necessario implementarla
@@ -2522,6 +2522,7 @@ int CLineChart::giveNearValue(QPoint mouseP , QPoint &nearP, QPointF &valueP){
     bool badIndex=false;
     if(index>=nPoints)
         badIndex=true;
+    Q_UNUSED(badIndex)
 
     //Ora scelgo per il file corrente il punto più vicino verticalmente al cursore
     if(xAxis.scaleType==stLin)
@@ -4852,7 +4853,7 @@ int CLineChart::writeAxisLabel(int X, int Y, SAxis &axis, bool _virtual ){
  */
   char prefix[]={'f','p','n','u','m','0','k','M','G','T','P'};
   int iTotPlot;
-  EadjustType hAdjust, vAdjust;
+  EadjustType hAdjust=atCenter, vAdjust=atCenter;
   QString unitS=""; //E' l'unità di misura dell'asse corrente, valutata considerando i valori di autoLabelXY e useUserUnits (v. spiegazione inizio funzione).
 
 

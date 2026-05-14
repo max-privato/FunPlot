@@ -598,13 +598,14 @@ La costruzione di lineFullNames segue la seguente logica:
     }
   }
   //Nel caso in cui oneFileIndex è diverso da selectedFileIndex devo verificare che non esistano nomi del tipo v# (cioè senza f#):
-  if(oneFileIndex!=selectedFileIdx)
+  if(oneFileIndex!=selectedFileIdx){
     foreach(QString str,nameList){
       if(str[0]=='v'){
          allNamesFromOneFile=false;
          break;
       }
     }
+  }
   if(allNamesFromOneFile)
     funText=fileNamesLst[oneFileIndex];
     /* Nella precedente riga non si può fare funText=fileNamesLst[oneFileIndex)] in quanto può capitare che ho salvato ad es. un unico file di num 2 e non posso chiamare il nome di indice 1, visto che avendo un unico file l'unico indice è 0.*/
@@ -879,7 +880,7 @@ Se il nome è di tipo v# il filenum è defaultFileNum*/
         fileNum=varStr.mid(1,j-1).toInt(&ok);
         if(ok==false) goto errorReturn;
         if(varStr[j]!='v') goto errorReturn;
-      [[clang::fallthrough]]; case 'v':
+      [[fallthrough]]; case 'v':
 //        if(varStr[0]=='v') j=0;
         k=regExpIndexIn(rxNotDigit,varStr,j+2); //k dovrebbe contenere il primo carattere dopo il numero dopo v. Siccome tale carattere non deve esistere, mi attendo k=-1
         if(k>=0) goto errorReturn;
