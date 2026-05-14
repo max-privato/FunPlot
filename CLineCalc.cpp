@@ -47,7 +47,7 @@ CLineCalc::CLineCalc(bool allowMathFunctions_){
     fun2[2]=div;
     fun2[3]=sum;
     fun2[4]=subtr;
-    rxAlphabet=QRegularExpression("[0-9a-zA-Z .-+*/()]");
+    rxAlphabet=QRegularExpression("[0-9a-zA-Z .+*/()^-]"); //'-' a fine classe per evitare ambiguità di range
     rxDatumPtr=QRegularExpression("[#@]");
     rxLetter=QRegularExpression("[a-zA-Z]"); //initial character of a variable
     rxLetterDigit=QRegularExpression("[a-zA-Z0-9]");
@@ -55,7 +55,7 @@ CLineCalc::CLineCalc(bool allowMathFunctions_){
     rxNotNum=QRegularExpression("[^0-9.]"); //not a character allowable in a number. I caratteri 'E' e 'e' sono considerati non-allowable perché sono trattati a parte per gestire l'eventuale segno sull'esponente.
     rxNum=QRegularExpression("[0-9.]"); //initial character of a number
     rxNumSepar=QRegularExpression("[-+*/() ]"); //carattere ammissibile fra un numero ed il successivo
-    rxOper=QRegularExpression("[-+*/]"); //operator
+    rxOper=QRegularExpression("[+*/^-]"); //operator; '-' a fine classe per evitare ambiguità di range
     rxNotLetterDigit=QRegularExpression("[^a-zA-Z0-9]");
     rxNotLetterDigitBracket=QRegularExpression("[^a-zA-Z0-9)]");
     defaultFileNum=-1;
@@ -176,7 +176,32 @@ Ogni volta che compute() è chiamata dall'esterno ricopio line in intLine, mentr
      return 0;
    }
 
-   //Prima applico gli operatori prioritari da sinistra verso destra:
+   //Applico prima l'operatore di potenza '^' (massima priorità fra gli operatori binari):
+   for(o=start; o<end; o++){
+     if(intLine[o]!='^')continue;
+     d1=qMax(intLine.lastIndexOf('#',o-1),intLine.lastIndexOf('@',o-1));
+     if(d1<start)
+        {ret="Internal error\"x1_^\"";return 0;}
+     if(intLine[d1]=='#')
+       x1=pConst[d1];
+     else{
+       if(pUnaryMinus[d1]) x1=-pVar[d1][iVal];
+       else                x1= pVar[d1][iVal];
+     }
+     d2=regExpIndexIn(rxDatumPtr,intLine,o+1);
+     if(d2<0||d2>end){ret="Unable to find second operand. \nInvolved operator: \"^\"";return 0;}
+     if(intLine[d2]=='#')
+       x2=pConst[d2];
+     else{
+       if(pUnaryMinus[d2]) x2=-pVar[d2][iVal];
+       else                x2= pVar[d2][iVal];
+     }
+     ret=power(x1,x2,y);
+     for(j=d1; j<=d2; j++)intLine[j]=' ';
+     intLine[o]='#';
+     pConst[o]=y;
+   }
+   //Poi applico gli operatori prioritari da sinistra verso destra:
    for(o=start; o<end; o++){
      if(intLine[o]!='*' && intLine[o]!='/')continue;
      //cerco il dato a sinistra

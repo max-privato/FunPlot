@@ -141,8 +141,11 @@ void MainWindow::on_plotBtn_clicked()
    //Passo a lineCalc la linea e ne comando l'interpretazione:
    lineCalc.xyNaming=false;
    err=lineCalc.getLine(line,1);
+   if(err!=""){
+       QMessageBox::warning(this,"funPlot",err);
+       return;
+   }
    err=lineCalc.getNamesAndMatrix(names,xMatr);
-
    if(err!=""){
        QMessageBox::warning(this,"funPlot",err);
        return;
