@@ -183,7 +183,8 @@ void MainWindow::updateTopBarFont(int windowHeight)
 {
     // Font size grows proportionally to window height, clamped between 8 and 13 pt.
     // Factor 53: height 424 → 8pt, 530 → 10pt, 636 → 12pt, ≥689 → 13pt.
-    int fontSize = qBound(8, windowHeight / 53, 13);
+
+    int fontSize = qBound(8, windowHeight / 60, 13);
     QFont f = font();
     f.setPointSize(fontSize);
     ui->plotBtn->setFont(f);
