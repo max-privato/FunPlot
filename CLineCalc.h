@@ -1,3 +1,22 @@
+/*
+ * This file is part of MC's PlotXY.
+ *
+ * PlotXY was created during 1998, continuously maintained and upgraded up to current year
+ * by Massimo Ceraolo from the University of Pisa.
+ *
+ * The Linux distribution has been built using Ceraolo's source code in 2018 by Perry
+ * Clements from Canada.
+ *
+ * This program is free software: you can redistribute it under the terms of GNU Public
+ * License version 3 as published by the Free Software Foundation.
+ *
+ * PLOTXY AND ALL THE RELATED MATERIAL INCLUDED IN THE DISTRIBUTION PLOTXY.ZIP FILE OR
+ * AVAILABLE FROM GITHUB IS SUPPLIED "AS-IS" THE AUTHOR OFFERS NO WARRANTY OF ITS FITNESS
+ * FOR ANY PURPOSE WHATSOEVER, AND ACCEPTS NO LIABILITY WHATSOEVER FOR ANY LOSS OR
+ * DAMAGE INCURRED BY ITS USE.
+ *
+ */
+
 #ifndef CLINECALC_H
 #define CLINECALC_H
 #include <QByteArray>
@@ -5,7 +24,6 @@
 #include <QList>
 #include <QVector>
 #include <QRegularExpression>
-#include "qtcompat.h"
 #include <math.h>
 #define MAXBINARYOPS 5 //massimo numero di operatori binari
 #define MAXFUNCTIONS 13 //massimo numero di funzioni matematiche
@@ -55,13 +73,13 @@ CLineCalc in questo caso si accorge che è richiesto un successivo integrale del
    4) ovviamente il percorso di cui al punto 2 viene eseguito in due passate, la prima con gli operatori prioritari '* e '/' e nella seconda con '+' e '-'
    5) ovviamente la presenza di parentesi viene onorata. Viene definita una sottostringa con il contenuto della parentesi, e con tale contenuto viene effettuata una chiamata ricorsiva alla funzione di calcolo compute()
    6) alla fine del processo la stringa conterrà un unico carattere '#', la cui posizione è l'indice di un puntatore al risultato
-
 */
 
+
 struct SVarNums{
-    int fileNum, //contiene il numero del file per la variabile considerata; vale -1 per variabili di tipo 'v#'
-        varNum; // numero della variabile; è il valore dell'ultimo '#' in f#v# o v#. Vale -1 in caso di nome passato incorretto.
-    bool operator== (const SVarNums & x);
+  int fileNum, //contiene il numero del file per la variabile considerata; vale -1 per variabili di tipo 'v#'
+      varNum; // numero della variabile; è il valore dell'ultimo '#' in f#v# o v#. Vale -1 in caso di nome passato incorretto.
+  bool operator== (const SVarNums & x) const;
 };
 
 //Predisposizione per il passaggio all'uso del nuovo CLineCalc (v. CLinecalc\developer.docx):
@@ -72,6 +90,7 @@ struct SXYNameData{
     bool rightScale;  //dice se la variabile va plottata verso l'asse verticale destro o no.
     bool integralRequest;  //dice se si sta richiedendo l'integrale di una stringa
     QColor color;
+    Qt::PenStyle style;
     QList <int> fileNums; //contiene la lista dei numeri dei files da cui è necessario prelevare le variabili della stringa (un item in lista per ogni file differente)
     QList <SVarNums> varNumsLst; //Numeri delle variabili. Un item in lista per ogni variabile differente
     QList <QString> varNames; //i nomi delle variabili della stringa. Forniscono un'informazione meno sofisticata di varNumsLst ma utile quando non serve la scomposizione di dettaglio ma solo i nomi.
@@ -93,17 +112,18 @@ class CLineCalc{
     bool integralRequest; //Per la spiegazione vedere il commento introduttivo all'inizio della descrizione della classe
     QString ret;
     CLineCalc(bool allowMathFunctions_=true);
+    SXYNameData checkAndFindNames();
     QString checkBSharp(QList<QString> varNames);
     QString checkLine();
     float compute(int iVal);
-    QString computeUnits();
     void getExplicitNames(QList<QList <QString> >  names_);
     void getFileInfo(QList <int> fileNumsLst_, QList<QString> fileNamesLst_, QList <int> varMaxNumsLst_);
     QString getLine(QString line_, int defaultfileNum_);
     QString getNamesAndMatrix(QList <QString> nameList, float ** y_);
-    QString getNamesAndMatrix(QList <QString> nameList, float ** y_, QList<QString *> namesFullList, int selectedFileIdx);
+    QString getNamesAndMatrix(QList <QString> nameList, QList<QString> unitsList, float ** y_, QList<QString *> namesFullList, int selectedFileIdx);
     QString giveLine(QString);
-    SXYNameData checkAndFindNames();
+    QString unitOfMeasuref();
+
   private:
     bool constantsAreSharps; //=ture quando le costanti sono state sostituite con '#'
     bool constantsConverted; //true se questa routine sia stata chiamata a valle di substPointersToConsts():
@@ -123,15 +143,19 @@ class CLineCalc{
     QString line; //lineNoInt con i nomi delle variabili semplificati, privati dei f# superflui, con applicazione di simplified(), e sostituzione di ',' con '.'
     QString lineInt; //come Line, ma contenente, se presente in lineUser,  "int(.)"
     QString intLine;// Stringa interna, continuamente alterata durante l’elaborazione di compute(). Non è locale di compute() perché deve consentire un’esecuzione ricorsiva.
-    QString lineFirstChar; //Copia della line in cui tutti i caratteri sono sostituiti con ' ' e poi dove c'è un '@' è messo il primo carattere del nome della variabile corrispondente, per facilitare la successiva individuazione dell'unità di misura
     QString lineFullNames;//su richiesta nella funzione ### è preparata questa stringa speciale, che contiene invece dei nomi convenzionali i nomi completi delle variabili originali, ma privi dei nomi dei files. Serviranno per visualizzare meglio i nomi delle variabili nelle finestre di plot
 
 
     QList <QString> myNameList; //Lista dei nomi delle variabili
+    QList <QString> myUnitList; //Lista delle unità di misura delle variabili. Questa lista è ordinata come myNameList
     QList <QChar> unitCharLst; //Lista dei primi caratteri dei nomi reali (servono per le unità di misura. Questa lista è ordinata come myNameList
+    QString unitOfMeasure; //contiene l'unità di misura risultante dall'elaborazione delle unità presenti nella formula
     QList <int> allowedFunIndexes; //
     QList <int> fileNumsLst;  //Lista dei numeri di files correntemente visualizzati nella fileTable
     QList <QString> fileNamesLst;  //Lista dei nomi di files correntemente visualizzati nella fileTable (senza path)
+    QString computeUnits();
+
+    //pure function tetermins uunit of measure from partial units
     QList <int> varMaxNumsLst; //Lista dei numeri di variabili dei files correntemente visualizzati nella fileTable
     //La sintassi  di CLineCalc prevede solo rxn e rxnn:
     QVector <int> varNumVect; //contiene l'elenco del numero di variabili per i MAXFILES files; serve per il check sintattico per le funzioni di variabile.
@@ -154,6 +178,7 @@ class CLineCalc{
     float * pConst; //vettore di puntatori alle costanti in line
     float (**pFun)(float x); //vettore di puntatori alle funzioni
     float ** pVar; //vettore di puntatori ai primi valori di ogni variabile-funzione
+    QString *pUnit; //vettore dei puntatori a unità di misura, contenuti nella stringlist mUnits
     SXYNameData nameData;
     //puntatori alle funzioni-operatore:
     QString funStr[MAXFUNCTIONS];

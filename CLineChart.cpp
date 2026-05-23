@@ -2055,7 +2055,7 @@ bool CLineChart::event(QEvent *event){
               if(!curveParamLst[hovData.iTotPlot].isFunction)break;
               hovVarRect= hovData.rect;
 //              QString str=curveParamLst[hovData.iTotPlot].fullName;
-              QToolTip::showText(QME_GLOBAL_POS(helpEvent), curveParamLst[hovData.iTotPlot].fullName);
+              QToolTip::showText(helpEvent->globalPos(), curveParamLst[hovData.iTotPlot].fullName);
 //              setToolTip(lCurveParam[hovData.iTotPlot].fullName);
             }
           }
@@ -2074,9 +2074,9 @@ bool CLineChart::event(QEvent *event){
       QString  sY=QString::number(valueP.y());
 
       if(ttType==1)
-        QToolTip::showText(QME_GLOBAL_POS(helpEvent), "x: "+sX+"\nry: "+sY);
+        QToolTip::showText(helpEvent->globalPos(), "x: "+sX+"\nry: "+sY);
       else //ttType=-1
-        QToolTip::showText(QME_GLOBAL_POS(helpEvent), "x: "+sX+"\ny: "+sY);
+        QToolTip::showText(helpEvent->globalPos(), "x: "+sX+"\ny: "+sY);
       // attivo il seguente timer che serve per vedere quando i tooltip è scomparso, e di conseguenza cancellare anche il quadratino rosso.
       tooltipTimer->start(200);
       bool thick=plotPen.width()>1;
