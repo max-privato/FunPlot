@@ -16,7 +16,7 @@ TEMPLATE = app
 SOURCES += main.cpp\
         MainWindow.cpp \
     CLineChart.cpp \
-    matrix.cpp \
+    SuppFunctions.cpp \
     CLineCalc.cpp \
     CPlotOptions.cpp  \
     CScaleDlg.cpp  \
@@ -25,7 +25,7 @@ SOURCES += main.cpp\
 
 HEADERS  += MainWindow.h\
     CLineChart.h \
-    matrix.h \
+    SuppFunctions.h \
     CLineCalc.h \
     CPlotOptions.h \
     CScaleDlg.h \

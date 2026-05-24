@@ -2,7 +2,7 @@
 #include <QResizeEvent>
 #include "MainWindow.h"
 #include "ui_MainWindow.h"
-#include "matrix.h"
+#include "SuppFunctions.h"
 #include <QScreen>
 
 MainWindow::MainWindow(QWidget *parent) :
